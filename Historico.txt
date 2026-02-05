@@ -1,0 +1,14 @@
+
+Api de visualização dos resultados
+
+09/10/2025:
+A pasta que se chamava Visualizador passa a se chamar CurvaCotaVazao e passa a ficar embaixo de Projetos_CPRM
+
+01_Desvio.py passa a se chamamar 02_Vazao 
+
+
+
+
+
+
+
