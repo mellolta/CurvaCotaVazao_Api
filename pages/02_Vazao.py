@@ -101,7 +101,7 @@ df_for_ano_options = get_filtered_df_for_options(vazao,
                                                  codigo=current_codigo_selection,
                                                  mes=current_mes_selection)
 # Obtém os valores únicos de 'Ano' e os ordena
-lista_ano_options = sorted(df_for_ano_options['Ano'].unique().tolist())
+lista_ano_options = sorted(df_for_ano_options['Ano'].unique().tolist(), reverse=True)
 
 # Opções para 'Mes': Filtrado por UR, Codigo e Ano
 df_for_mes_options = get_filtered_df_for_options(vazao,

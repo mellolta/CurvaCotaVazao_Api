@@ -121,7 +121,7 @@ df_for_ano_options = get_filtered_df_for_options(balanceamento,
 
 #- Obtém os valores únicos de 'Ano' a partir da coluna 'ValidadeFim' e os ordena
 anos_disponiveis = pd.DatetimeIndex(df_for_ano_options['ValidadeFim']).year.unique()
-lista_ano_options = sorted(anos_disponiveis.tolist())
+lista_ano_options = sorted(anos_disponiveis.tolist(), reverse=True)
 
 # Opções para 'Mes': Filtrado por UR, Codigo e Ano
 df_for_mes_options = get_filtered_df_for_options(balanceamento,
