@@ -52,6 +52,7 @@ def carregaCSV_local(csv_file:str)-> pd.DataFrame:
         df.drop(columns=[df.columns[0]], inplace=True)
 
     if 'Data' in df.columns:
+        # 'coerce' força a conversão, colocando NaT (Not a Time) em valores inválidos.
         df['Data'] = pd.to_datetime(df['Data'], format='%Y-%m-%d', errors='coerce')
     
     return df

@@ -11,14 +11,32 @@ a função de carregamento dos csv foi para Funcoes_Diversas.py
 # $ Bibliotecas
 import streamlit as st
 import pandas as pd
-
+import locale
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais
+
+# Tenta configurar o locale para Português (Brasil)
+try:
+    # Tenta o padrão Linux/Unix (Streamlit Cloud)
+    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+except locale.Error:
+    try:
+        # Tenta o padrão Windows
+        locale.setlocale(locale.LC_ALL, 'Portuguese_Brazil.1252')
+    except locale.Error:
+        # Se ambos falharem, mantém o padrão do sistema
+        locale.setlocale(locale.LC_ALL, '')
+
 # - para usar a largura total da página
 st.set_page_config(layout="wide")
 
 #- logo CPRM no canto superior direito
 st.image("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png", width=200)
+
+#- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
+if 'outliers' not in st.session_state:
+    st.error("Dados não carregados. Por favor, retorne à página principal.")
+    st.stop()
 
 #- Inicializa as chaves no st.session_state se não existirem, para evitar KeyError
 #< Isso garante que os valores persistam entre as re-execuções do script.
@@ -31,14 +49,17 @@ if 'selected_ano' not in st.session_state:
 if 'selected_mes' not in st.session_state:
     st.session_state['selected_mes'] = None
 
-#- DataFrame outlyers_cotas (carregado na página principal e já definido no session_state)
-outlyers_cotas = st.session_state['outlyers_cotas']
+#- DataFrame outliers (carregado na página principal e já definido no session_state)
+outliers = st.session_state['outliers']
 
 #- Renomea a coluna 'EstacaoCodigo' para 'Codigo' para manter a consistência
-outlyers_cotas.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
+outliers.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
+
+#- Cria um dicionário onde a CHAVE é o Código e o VALOR é o Nome
+mapa_nomes = outliers.drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
 
 #- Título e descrição da página
-st.subheader("Outlyers de cotas do banco SQL")
+st.subheader("Compara cotas e vazões do banco SQL com o dia anterior")
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Filtros interdependentes (UR, Estação, Ano, Mês)
@@ -79,7 +100,7 @@ def get_filtered_df_for_options(df, ur=None, codigo=None, ano=None, mes=None):
 
 # --- Determina as opções para cada caixa de seleção com base nas outras seleções ---
 # Opções para 'UR': Filtrado por Codigo, Ano e Mes
-df_for_UR_options = get_filtered_df_for_options(outlyers_cotas,
+df_for_UR_options = get_filtered_df_for_options(outliers,
                                                 codigo=current_codigo_selection,
                                                 ano=current_ano_selection,
                                                 mes=current_mes_selection)
@@ -87,7 +108,7 @@ df_for_UR_options = get_filtered_df_for_options(outlyers_cotas,
 lista_UR_options = sorted(df_for_UR_options['UR'].unique().tolist())
 
 # Opções para 'Codigo': Filtrado por UR, Ano e Mes
-df_for_codigo_options = get_filtered_df_for_options(outlyers_cotas,
+df_for_codigo_options = get_filtered_df_for_options(outliers,
                                                     ur=current_UR_selection,
                                                     ano=current_ano_selection,
                                                     mes=current_mes_selection)
@@ -95,7 +116,7 @@ df_for_codigo_options = get_filtered_df_for_options(outlyers_cotas,
 lista_codigo_options = sorted(df_for_codigo_options['Codigo'].unique().tolist())
 
 # Opções para 'Ano': Filtrado por UR, Codigo e Mes
-df_for_ano_options = get_filtered_df_for_options(outlyers_cotas,
+df_for_ano_options = get_filtered_df_for_options(outliers,
                                                  ur=current_UR_selection,
                                                  codigo=current_codigo_selection,
                                                  mes=current_mes_selection)
@@ -103,7 +124,7 @@ df_for_ano_options = get_filtered_df_for_options(outlyers_cotas,
 lista_ano_options = sorted(df_for_ano_options['Ano'].unique().tolist(), reverse=True)
 
 # Opções para 'Mes': Filtrado por UR, Codigo e Ano
-df_for_mes_options = get_filtered_df_for_options(outlyers_cotas,
+df_for_mes_options = get_filtered_df_for_options(outliers,
                                                  ur=current_UR_selection,
                                                  codigo=current_codigo_selection,
                                                  ano=current_ano_selection)
@@ -131,11 +152,19 @@ ur_select = col1.selectbox(
     index=index_UR                    # Índice da opção selecionada inicialmente
 )
 
+# --- Função de formatação para exibir Código - Nome ---
+def formatar_estacao(codigo):
+    # Busca o nome correspondente ao código no DataFrame original
+    nome = mapa_nomes.get(codigo, "Nome não encontrado")
+    return f"{codigo} - {nome}"
+
+# --- Selectbox atualizado ---
 codigo_select = col2.selectbox(
-    'Estação',                        # Rótulo do selectbox
-    lista_codigo_options,             # Opções disponíveis (dinâmicas)
-    key='selected_station',           # Chave única para o widget
-    index=index_codigo                # Índice da opção selecionada inicialmente
+    'Estação',                      # Rótulo do selectbox
+    lista_codigo_options,           # Opções disponíveis (dinâmicas)
+    key='selected_station',         # Chave única para o widget
+    index=index_codigo,             # Índice da opção selecionada inicialmente
+    format_func=formatar_estacao    # <--- Esta função altera o que o usuário vê
 )
 
 ano_select = col3.selectbox(
@@ -164,46 +193,80 @@ col2.button("Exibir Resultado após seleção", type="primary")
 
 # --- Aplica os filtros finais ao DataFrame a ser exibido ---
 # Começa com uma cópia do DataFrame original.
-exibe_outlyers_cotas = outlyers_cotas.copy()
+exibe_outliers = outliers.copy()
 
 # Aplica cada filtro, se selecionado
 if ur_select:
-    exibe_outlyers_cotas = exibe_outlyers_cotas[exibe_outlyers_cotas['UR'] == ur_select]
+    exibe_outliers = exibe_outliers[exibe_outliers['UR'] == ur_select]
 if codigo_select:
-    exibe_outlyers_cotas = exibe_outlyers_cotas[exibe_outlyers_cotas['Codigo'] == codigo_select]
+    exibe_outliers = exibe_outliers[exibe_outliers['Codigo'] == codigo_select]
 if ano_select:
-    exibe_outlyers_cotas = exibe_outlyers_cotas[exibe_outlyers_cotas['Ano'] == ano_select]
+    exibe_outliers = exibe_outliers[exibe_outliers['Ano'] == ano_select]
 if mes_select:
-    exibe_outlyers_cotas = exibe_outlyers_cotas[exibe_outlyers_cotas['Mes'] == mes_select]
+    exibe_outliers = exibe_outliers[exibe_outliers['Mes'] == mes_select]
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Formatação das colunas do DataFrame exibido
+#$ Formatação do DataFrame exibido
 
-#< Isso é feito após a filtragem para garantir que apenas os dados finais sejam formatados.
-#- Transforma a coluna 'Data' do DataFrame filtrado para o formato de string 'dd/mm/aaaa'.
-exibe_outlyers_cotas['Data'] = exibe_outlyers_cotas['Data'].dt.strftime(date_format='%d/%m/%Y')
+#- Verifica se há algum filtro ativo (se as seleções não são None)
+filtros_ativos = any([ur_select, codigo_select, ano_select, mes_select])
 
-#- Formata a coluna '% Diferença' para uma casa após a vírgula
-if '% Diferença' in exibe_outlyers_cotas.columns:
-    exibe_outlyers_cotas['% Diferença'] = exibe_outlyers_cotas['% Diferença'].apply(lambda x: f"{x:.1f}".replace('.', ',') if pd.notnull(x) else x)
+#- Só corta o DataFrame se não tiver filtro
+if not filtros_ativos:
+    df_final = exibe_outliers.head(100)
+else:
+    df_final = exibe_outliers
 
-#- Substitui virgula por nada nas colunas numéricas para exibição
-# colunas_numericas = ['Codigo', 'Ano']
-# for col in colunas_numericas:
-#     if col in exibe_outlyers_cotas.columns:
-#         exibe_outlyers_cotas[col] = exibe_outlyers_cotas[col].apply(lambda x: f"{x}".replace(',', '') if pd.notnull(x) else x)
+# < ------------------------------------------------------------------------------------------------------------------------------
+#- Função para definir a cor do texto baseada no valor
+def colorir_desvio(valor):
+    try:
+        # Se o desvio (em módulo) for maior que 50%, pinta de vermelho
+        cor = 'red' if abs(valor) > 50 else 'black'
+        return f'color: {cor}'
+    except:
+        return 'color: black'
+
+#- Formatação Brasileira via Pandas Styler e o estilo condicional
+#< Isso mantém os dados como números (para ordenar), mas exibe com vírgula e ponto
+df_estilizado = df_final.style.format({
+    # Exibe a coluna 'Data' do DataFrame para o formato de string 'dd/mm/aaaa'.
+    'Data': lambda x: x.strftime('%d/%m/%Y') if pd.notnull(x) else "",
+    'Vazao': "{:.1f}",
+    'Vazao_Anterior': "{:.1f}",
+    'Diferença_vazao': "{:.1f}",
+    '% Diferença_vazao': "{:.1f}",
+}, decimal=',', thousands='.') \
+.map(colorir_desvio, subset=['% Diferença_vazao']) # <--- Aplica a cor apenas na coluna DesvioMedio
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Exibe o DataFrame resultante
 
 #- Descrição do DataFrame exibido
-st.markdown(f"**Número de registros:** {len(exibe_outlyers_cotas)}")
-
-#- Adiciona um espaço vertical antes do DataFrame para melhor separação visual
-st.markdown("<br>", unsafe_allow_html=True)
+st.markdown(f"**Número de registros:** {len(exibe_outliers)}")
+st.markdown("<br>", unsafe_allow_html=True) #- quebra de linha usando HTML para espaçamento
 
 #- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner
-st.dataframe(exibe_outlyers_cotas, hide_index=True, width='stretch')
+st.dataframe(
+    df_estilizado,
+    hide_index=True,
+    width="stretch",
+    column_config={
+        "Codigo": st.column_config.NumberColumn("Código", format="%d"),
+        "Status": st.column_config.NumberColumn("Status", format="%d"),
+        "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d"),
+        "Cota_Anterior": st.column_config.NumberColumn("Cota Anterior (cm)", format="%d"),
+        "Vazao": "Vazão (m³/s)",
+        "Vazao_Anterior": "Vazão Anterior (m³/s)",
+        "Diferença_vazao": "Diferença Vazao (m³/s)",
+        "Diferença_cota": st.column_config.NumberColumn("Diferença Cota (cm)", format="%d"),
+        "% Diferença_cota": st.column_config.NumberColumn("Diferença Cota (%)", format="%.1f"),
+        "Ano": st.column_config.NumberColumn("Ano", format="%d"),
+        "Mes": st.column_config.NumberColumn("Mês", format="%d"),
+        # Notas: Quando usamos .style.format, o 'format' do column_config 
+        # pode ser omitido para as colunas numéricas estilizadas.
+    }
+)
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 

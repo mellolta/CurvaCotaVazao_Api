@@ -1,24 +1,39 @@
 # -*- coding: utf-8 -*-
 """
-Api de visualização
+Página da Api de visualização
 Visualiza os arquivos .csv resultante do módulo VerificaVazaoGerada.py
-
-Modificações:
-a função de carregamento dos csv foi para Funcoes_Diversas.py
+a função de carregamento do csv está em Home.py
 
 """
  #<===============================================================================================================================
 # $ Bibliotecas
 import streamlit as st
-import pandas as pd
-
+import locale
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais
+
+# Tenta configurar o locale para Português (Brasil)
+try:
+    # Tenta o padrão Linux/Unix (Streamlit Cloud)
+    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+except locale.Error:
+    try:
+        # Tenta o padrão Windows
+        locale.setlocale(locale.LC_ALL, 'Portuguese_Brazil.1252')
+    except locale.Error:
+        # Se ambos falharem, mantém o padrão do sistema
+        locale.setlocale(locale.LC_ALL, '')
+
 # - para usar a largura total da página
 st.set_page_config(layout="wide")
 
 #- logo CPRM no canto superior direito
 st.image("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png", width=200)
+
+#- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
+if 'cota' not in st.session_state:
+    st.error("Dados não carregados. Por favor, retorne à página principal.")
+    st.stop()
 
 #- Inicializa as chaves no st.session_state se não existirem, para evitar KeyError
 #< Isso garante que os valores persistam entre as re-execuções do script.
@@ -37,8 +52,11 @@ cota = st.session_state['cota']
 #- Renomea a coluna 'EstacaoCodigo' para 'Codigo' para manter a consistência
 cota.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
 
+#- Cria um dicionário onde a CHAVE é o Código e o VALOR é o Nome
+mapa_nomes = cota.drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
+
 #- Título e descrição da página
-st.subheader("Cota fora do intervalo da curva-chave do banco SQL")
+st.subheader("Cota fora do intervalo da curva chave que está no banco SQL")
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Filtros interdependentes (UR, Estação, Ano, Mês)
@@ -131,11 +149,19 @@ ur_select = col1.selectbox(
     index=index_UR                    # Índice da opção selecionada inicialmente
 )
 
+# --- Função de formatação para exibir Código - Nome ---
+def formatar_estacao(codigo):
+    # Busca o nome correspondente ao código no DataFrame original
+    nome = mapa_nomes.get(codigo, "Nome não encontrado")
+    return f"{codigo} - {nome}"
+
+# --- Selectbox atualizado ---
 codigo_select = col2.selectbox(
-    'Estação',                        # Rótulo do selectbox
-    lista_codigo_options,             # Opções disponíveis (dinâmicas)
-    key='selected_station',           # Chave única para o widget
-    index=index_codigo                # Índice da opção selecionada inicialmente
+    'Estação',                      # Rótulo do selectbox
+    lista_codigo_options,           # Opções disponíveis (dinâmicas)
+    key='selected_station',         # Chave única para o widget
+    index=index_codigo,             # Índice da opção selecionada inicialmente
+    format_func=formatar_estacao    # <--- Esta função altera o que o usuário vê
 )
 
 ano_select = col3.selectbox(
@@ -177,33 +203,36 @@ if mes_select:
     exibe_cota = exibe_cota[exibe_cota['Mes'] == mes_select]
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Formatação das colunas do DataFrame exibido
-
-#< Isso é feito após a filtragem para garantir que apenas os dados finais sejam formatados.
-#- Transforma a coluna 'Data' do DataFrame filtrado para o formato de string 'dd/mm/aaaa'.
-exibe_cota['Data'] = exibe_cota['Data'].dt.strftime(date_format='%d/%m/%Y')
-
-#- Formata a coluna 'Cota' para uma casa após a vírgula
-if 'Cota' in exibe_cota.columns:
-    exibe_cota['Cota'] = exibe_cota['Cota'].apply(lambda x: f"{x:.1f}".replace('.', ',') if pd.notnull(x) else x)
-
-#- Substitui virgula por nada nas colunas numéricas para exibição
-colunas_numericas = ['Codigo', 'Ano']
-for col in colunas_numericas:
-    if col in exibe_cota.columns:
-        exibe_cota[col] = exibe_cota[col].apply(lambda x: f"{x}".replace(',', '') if pd.notnull(x) else x)
-
-# < ------------------------------------------------------------------------------------------------------------------------------
-#$ Exibe o DataFrame resultante
+#$ Formatação do DataFrame exibido
 
 #- Descrição do DataFrame exibido
 st.markdown(f"**Número de registros:** {len(exibe_cota)}")
+st.markdown("<br>", unsafe_allow_html=True) #- quebra de linha usando HTML para espaçamento
 
-#- Adiciona um espaço vertical antes do DataFrame para melhor separação visual
-st.markdown("<br>", unsafe_allow_html=True)
+#- Verifica se há algum filtro ativo (se as seleções não são None)
+filtros_ativos = any([ur_select, codigo_select, ano_select, mes_select])
 
-#- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner
-st.dataframe(exibe_cota, hide_index=True, width='stretch')
+#- Só corta o DataFrame se não tiver filtro
+if not filtros_ativos:
+    df_final = exibe_cota.head(100)
+else:
+    df_final = exibe_cota
+
+# < ------------------------------------------------------------------------------------------------------------------------------
+#- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner (formatado sem mexer nos tipos dos dados)
+st.dataframe(
+    df_final,
+    hide_index=True, # Exibe o índice para melhor referência
+    width="stretch",
+    column_config={
+        "Data": st.column_config.DatetimeColumn("Data", format="DD/MM/YYYY"),
+        "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d"),
+        "Status": st.column_config.NumberColumn("Status", format="%d"),
+        "Codigo": st.column_config.NumberColumn("Código", format="%d"),
+        "Ano": st.column_config.NumberColumn("Ano", format="%d"),
+        "Mes": st.column_config.NumberColumn("Mês", format="%d"),
+    }
+)
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 

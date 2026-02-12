@@ -2,24 +2,38 @@
 """
 Api de visualização
 Visualiza os arquivos .csv resultante do módulo VerificaVazaoGerada.py
-
-Modificações:
-a função de carregamento dos csv foi para Funcoes_Diversas.py
+a função de carregamento do csv está em Home.py
 
 """
  #<===============================================================================================================================
 # $ Bibliotecas
 import streamlit as st
-import pandas as pd
-import Funcoes as fc
-
+import locale
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais
+
+# Tenta configurar o locale para Português (Brasil)
+try:
+    # Tenta o padrão Linux/Unix (Streamlit Cloud)
+    locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
+except locale.Error:
+    try:
+        # Tenta o padrão Windows
+        locale.setlocale(locale.LC_ALL, 'Portuguese_Brazil.1252')
+    except locale.Error:
+        # Se ambos falharem, mantém o padrão do sistema
+        locale.setlocale(locale.LC_ALL, '')
+
 # - para usar a largura total da página
 st.set_page_config(layout="wide")
 
 #- logo CPRM no canto superior direito
 st.image("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png", width=200)
+
+#- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
+if 'vazao' not in st.session_state:
+    st.error("Dados não carregados. Por favor, retorne à página principal.")
+    st.stop()
 
 #- Inicializa as chaves no st.session_state se não existirem, para evitar KeyError
 #< Isso garante que os valores persistam entre as re-execuções do script.
@@ -37,6 +51,9 @@ vazao = st.session_state['vazao']
 
 #- Renomea a coluna 'EstacaoCodigo' para 'Codigo' para manter a consistência
 vazao.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
+
+#- Cria um dicionário onde a CHAVE é o Código e o VALOR é o Nome
+mapa_nomes = vazao.drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
 
 #- Título e descrição da página
 st.subheader("Vazão do banco SQL X Vazão calculada pela curva-chave (Qcalc)")
@@ -132,11 +149,19 @@ ur_select = col1.selectbox(
     index=index_UR                    # Índice da opção selecionada inicialmente
 )
 
+# --- Função de formatação para exibir Código - Nome ---
+def formatar_estacao(codigo):
+    # Busca o nome correspondente ao código no DataFrame original
+    nome = mapa_nomes.get(codigo, "Nome não encontrado")
+    return f"{codigo} - {nome}"
+
+# --- Selectbox atualizado ---
 codigo_select = col2.selectbox(
-    'Estação',                        # Rótulo do selectbox
-    lista_codigo_options,             # Opções disponíveis (dinâmicas)
-    key='selected_station',           # Chave única para o widget
-    index=index_codigo                # Índice da opção selecionada inicialmente
+    'Estação',                      # Rótulo do selectbox
+    lista_codigo_options,           # Opções disponíveis (dinâmicas)
+    key='selected_station',         # Chave única para o widget
+    index=index_codigo,             # Índice da opção selecionada inicialmente
+    format_func=formatar_estacao    # <--- Esta função altera o que o usuário vê
 )
 
 ano_select = col3.selectbox(
@@ -180,39 +205,61 @@ if mes_select:
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Formatação das colunas do DataFrame exibido
 
-#< Isso é feito após a filtragem para garantir que apenas os dados finais sejam formatados.
-#- Transforma a coluna 'Data' do DataFrame filtrado para o formato de string 'dd/mm/aaaa'.
-exibe_vazao['Data'] = exibe_vazao['Data'].dt.strftime(date_format='%d/%m/%Y')
+#- Verifica se há algum filtro ativo (se as seleções não são None)
+filtros_ativos = any([ur_select, codigo_select, ano_select, mes_select])
 
-#- Formata a coluna 'Cota' para uma casa após a vírgula
-if 'Cota' in exibe_vazao.columns:
-    exibe_vazao['Cota'] = exibe_vazao['Cota'].apply(lambda x: f"{x:.1f}".replace('.', ',') if pd.notnull(x) else x)
-
-#- Substitui ponto por virgula nas colunas numéricas para exibição
-colunas_numericas = ['Vazao', 'Qcalc', 'vazao']
-for col in colunas_numericas:
-    if col in exibe_vazao.columns:
-        exibe_vazao[col] = exibe_vazao[col].apply(lambda x: f"{x:.2f}".replace('.', ',') if pd.notnull(x) else x) 
-
-#- Substitui virgula por nada nas colunas numéricas para exibição
-colunas_numericas = ['Codigo', 'Ano']
-for col in colunas_numericas:
-    if col in exibe_vazao.columns:
-        exibe_vazao[col] = exibe_vazao[col].apply(lambda x: f"{x}".replace(',', '') if pd.notnull(x) else x)
+#- Só corta o DataFrame se não tiver filtro
+if not filtros_ativos:
+    df_final = exibe_vazao.head(100)
+else:
+    df_final = exibe_vazao
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Exibe o DataFrame resultante
+#- Função para definir a cor do texto baseada no valor
+def colorir_desvio(valor):
+    try:
+        # Se o desvio (em módulo) for maior que 10%, pinta de vermelho
+        cor = 'red' if abs(valor) > 10 else 'black'
+        return f'color: {cor}'
+    except:
+        return 'color: black'
+
+#- Formatação Brasileira via Pandas Styler e o estilo condicional
+#< Isso mantém os dados como números (para ordenar), mas exibe com vírgula e ponto
+df_estilizado = df_final.style.format({
+    'Codigo': "{:.0f}",
+    'Cota': "{:.0f}",
+    'Vazao': "{:.3f}",
+    'Qcalc': "{:.3f}",
+    'Desvio': "{:.2f}",
+    'Status': "{:.0f}",
+    'Ano': "{:.0f}",
+    'Mes': "{:.0f}",
+}, decimal=',', thousands='.') \
+.map(colorir_desvio, subset=['Desvio']) # <--- Aplica a cor apenas na coluna Desvio
+
+# < ------------------------------------------------------------------------------------------------------------------------------
+#$ Exibe o DataFrame resultante com a formatação aplicada
 
 #- Descrição do DataFrame exibido
 st.markdown(f"**Número de registros:** {len(exibe_vazao)}")
+st.markdown("**Coluna 'Desvio':** Mostra a diferença percentual entre a vazão do banco SQL e a vazão calculada pela curva-chave (Qcalc). ")
+st.markdown("<br>", unsafe_allow_html=True) #- quebra de linha usando HTML para espaçamento
 
-#- Adiciona um espaço vertical antes do DataFrame para melhor separação visual
-st.markdown("<br>", unsafe_allow_html=True)
-
-#- Descrição da coluna
-st.markdown("**Coluna 'vazao':** Mostra a diferença entre a vazão do banco SQL e a vazão calculada pela curva-chave (Qcalc). ")
 #- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner
-st.dataframe(exibe_vazao, hide_index=True, width='stretch')
+st.dataframe(
+    df_estilizado,
+    hide_index=True,
+    width="stretch",
+    column_config={
+        "Data": st.column_config.DatetimeColumn("Data", format="DD/MM/YYYY"),
+        "Codigo": st.column_config.NumberColumn("Código", format="%d"),
+        "Ano": st.column_config.NumberColumn("Ano", format="%d"),
+        "Mes": st.column_config.NumberColumn("Mês", format="%d"),
+        # Notas: Quando usamos .style.format, o 'format' do column_config 
+        # pode ser omitido para as colunas numéricas estilizadas.
+    }
+)
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 
