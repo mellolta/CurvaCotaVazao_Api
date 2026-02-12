@@ -264,7 +264,11 @@ st.dataframe(
         "Data": st.column_config.DatetimeColumn("Data", format="DD/MM/YYYY"),
         "Codigo": st.column_config.NumberColumn("Código", format="%d"),
         "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d"),
+        "Vazao": "Vazão (m³/s)",
         "NumMed": st.column_config.NumberColumn("NumMed", format="%d"),
+        "Curva": st.column_config.NumberColumn("Curva", format="%d"),
+        "Lim_inf": st.column_config.NumberColumn("Lim_inf (cm)", format="%d"),
+        "Lim_sup": st.column_config.NumberColumn("Lim_sup (cm)", format="%d"),
         "Ano": st.column_config.NumberColumn("Ano", format="%d"),
         "Mes": st.column_config.NumberColumn("Mês", format="%d"),
         # Notas: Quando usamos .style.format, o 'format' do column_config 

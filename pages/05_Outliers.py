@@ -235,10 +235,10 @@ df_estilizado = df_final.style.format({
     'Vazao': "{:.1f}",
     'Vazao_Anterior': "{:.1f}",
     'Diferença_vazao': "{:.1f}",
-    'Diferença_vazao_%': "{:.1f}",
-    'Diferença_cota_%': "{:.1f}",
+    'DifPer_vazao': "{:.1f}",
+    'DifPer_cota': "{:.1f}",
 }, decimal=',', thousands='.') \
-.map(colorir_desvio, subset=['Diferença_cota_%','Diferença_vazao_%']) # <--- Aplica a cor apenas na coluna DesvioMedio
+.map(colorir_desvio, subset=['DifPer_cota','DifPer_vazao']) # <--- Aplica a cor apenas na coluna
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Exibe o DataFrame resultante
@@ -260,7 +260,8 @@ st.dataframe(
         "Vazao": "Vazão (m³/s)",
         "Vazao_Anterior": "Vazão Anterior (m³/s)",
         "Diferença_vazao": "Diferença Vazao (m³/s)",
-        "Diferença_vazao_%": "Diferença Vazao (%)",
+        "DifPer_vazao": "Diferença Vazao (%)",
+        "DifPer_cota": "Diferença Cota (%)",
         "Diferença_cota": st.column_config.NumberColumn("Diferença Cota (cm)", format="%d"),
         "Ano": st.column_config.NumberColumn("Ano", format="%d"),
         "Mes": st.column_config.NumberColumn("Mês", format="%d"),
@@ -270,6 +271,5 @@ st.dataframe(
 )
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-
 
 
