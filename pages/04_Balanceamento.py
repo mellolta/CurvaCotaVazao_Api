@@ -11,12 +11,16 @@ Aqui o filtro buscará pelo intervalo entre 'ValidadeInicio' e 'ValidadeFim'
  #<===============================================================================================================================
 # $ Bibliotecas
 import streamlit as st
-import pandas as pd
 import locale
+import pandas as pd
+
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais
 
-# Tenta configurar o locale para Português (Brasil)
+#- Aumenta o limite de elementos para formatação do Styler
+pd.set_option("styler.render.max_elements", 1000000)
+
+#- Tenta configurar o locale para Português (Brasil)
 try:
     # Tenta o padrão Linux/Unix (Streamlit Cloud)
     locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
@@ -41,14 +45,9 @@ if 'medicoes' not in st.session_state:
 
 #- Inicializa as chaves no st.session_state se não existirem, para evitar KeyError
 #< Isso garante que os valores persistam entre as re-execuções do script.
-if 'selected_UR' not in st.session_state:
-    st.session_state['selected_UR'] = None
-if 'selected_station' not in st.session_state:
-    st.session_state['selected_station'] = None
-if 'selected_ano' not in st.session_state:
-    st.session_state['selected_ano'] = None
-if 'selected_mes' not in st.session_state:
-    st.session_state['selected_mes'] = None
+for key in ['selected_UR', 'selected_station', 'selected_ano', 'selected_mes']:
+    if key not in st.session_state:
+        st.session_state[key] = None
 
 #- DataFrame balanceamento (carregado na página principal e já definido no session_state)
 balanceamento = st.session_state['balanceamento']
@@ -82,14 +81,6 @@ st.subheader("Balanceamento das medições por período de validade da curva-cha
 #- Define 4 colunas para os selectboxes: UR | Estação | Ano | Mes
 col1, col2, col3, col4 = st.columns(4)
 
-# --- Função para limpar os filtros ---
-def limpar_filtros():
-    """Reseta os valores dos filtros no st.session_state."""
-    st.session_state['selected_UR'] = None
-    st.session_state['selected_station'] = None
-    st.session_state['selected_ano'] = None
-    st.session_state['selected_mes'] = None
-
 #- Obtém as seleções atuais do estado da sessão para cada filtro
 current_UR_selection = st.session_state['selected_UR']
 current_codigo_selection = st.session_state['selected_station']
@@ -98,15 +89,15 @@ current_mes_selection = st.session_state['selected_mes']
 
 # --- Função auxiliar para filtrar o DataFrame e obter opções dinâmicas ---
 #- A função modificada para considerar a lógica de intervalo para Ano e Mês, 
-# já que o balanceamento não tem uma coluna 'Data' específica, mas sim um período de validade definido por 'ValidadeInicio' e 'ValidadeFim'.
+#> já que o balanceamento não tem uma coluna 'Data' específica, 
+#> mas sim um período de validade definido por 'ValidadeInicio' e 'ValidadeFim'.
 def get_filtered_df_for_options(df, ur=None, codigo=None, ano=None, mes=None):
+    """Retorna o DataFrame filtrado para gerar listas de opções dinâmicas."""
     temp_df = df.copy()
-    if ur is not None:
-        temp_df = temp_df[temp_df['UR'] == ur]
-    if codigo is not None:
-        temp_df = temp_df[temp_df['Codigo'] == codigo]
+    if ur is not None: temp_df = temp_df[temp_df['UR'] == ur]
+    if codigo is not None: temp_df = temp_df[temp_df['Codigo'] == codigo]
     
-    # Lógica de Intervalo para Ano e Mês
+    #- Lógica de Intervalo para Ano e Mês
     if ano is not None:
         # Criamos uma data base para comparação (ex: dia 15 do mês selecionado ou janeiro se mês for None)
         m = mes if mes is not None else 1
@@ -175,7 +166,9 @@ ur_select = col1.selectbox(
 
 # --- Função de formatação para exibir Código - Nome ---
 def formatar_estacao(codigo):
-    # Busca o nome correspondente ao código no DataFrame original
+    """Formatação para exibição no selectbox.
+       Busca o nome correspondente ao código no DataFrame original
+    """
     nome = mapa_nomes.get(codigo, "Nome não encontrado")
     return f"{codigo} - {nome}"
 
@@ -205,12 +198,19 @@ mes_select = col4.selectbox(
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Botões para limpar filtros e exibir resultado
 
-col1, col2, col3 = st.columns(3)
-# --- Botão para limpar todos os filtros ---
-col1.button("Limpar Filtros", on_click=limpar_filtros)
+# --- Função para limpar os filtros ---
+def limpar_filtros():
+    """Reseta os valores dos filtros no st.session_state."""
+    for key in ['selected_UR', 'selected_station', 'selected_ano', 'selected_mes']:
+        st.session_state[key] = None
 
-# --- Botão Exibir Resultado ---
-col2.button("Exibir Resultado após seleção", type="primary")
+c_btn1, _, c_btn2 = st.columns([1, 4, 1])
+
+# --- Botão para limpar todos os filtros ---
+c_btn1.button("Limpar Filtros",          # legenda do botão
+              on_click=limpar_filtros,   # função a ser chamada quando o botão for clicado
+              use_container_width=False, # faz o botão ocupar toda a largura da coluna
+              type= "secondary")         # estilo do botão (opcional)
 
 # --- Aplica os filtros finais ao DataFrame a ser exibido ---
 # Começa com uma cópia do DataFrame original.
@@ -240,17 +240,39 @@ if ano_select:
                (exibe_balanceamento['ValidadeFim'] >= inicio_ano)
     
     exibe_balanceamento = exibe_balanceamento[mask]
+
+
+#$ Ordenação dos Dados críticos
+#- Cria uma coluna temporária para o desvio absoluto (facilita a ordenação)
+exibe_balanceamento['Desvio_Abs'] = exibe_balanceamento['DesvioMedio'].abs()
+
+#- Botão para ordenar pelos casos mais críticos
+if c_btn2.button("🔥 Ordenar por Maior Desvio", 
+                 use_container_width=True, 
+                 type="primary"):
+    exibe_balanceamento = exibe_balanceamento.sort_values(by='Desvio_Abs', ascending=False)
+    st.success("Ordenado pelos maiores desvios.")
+else:
+    # Ordem padrão (geralmente por data ou como vier do banco)
+    exibe_balanceamento = exibe_balanceamento.sort_values(by='ValidadeFim', ascending=False)
+
+#- Remove a coluna temporária para não poluir a tabela final
+exibe_balanceamento = exibe_balanceamento.drop(columns=['Desvio_Abs'])
+
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Formatação das colunas do DataFrame exibido
 
-#- Verifica se há algum filtro ativo (se as seleções não são None)
-filtros_ativos = any([ur_select, codigo_select, ano_select, mes_select])
+#- Limite de segurança para a exibição das linhas com formatação condicional (Styler)
+LIMITE_ESTILO = 1000
+total_linhas = len(exibe_balanceamento)
 
-#- Só corta o DataFrame se não tiver filtro
-if not filtros_ativos:
-    df_final = exibe_balanceamento.head(100)
+#- Se for maior que o limite, pegamos apenas o topo para o Styler não quebrar
+if total_linhas > LIMITE_ESTILO:
+    df_para_estilizar = exibe_balanceamento.head(LIMITE_ESTILO)
+    aviso_limite = f"⚠️ Exibindo as primeiras {LIMITE_ESTILO} linhas. Use os filtros para ver mais dados."
 else:
-    df_final = exibe_balanceamento
+    df_para_estilizar = exibe_balanceamento
+    aviso_limite = None
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #- Função para definir a cor do texto baseada no valor
@@ -278,7 +300,7 @@ def colorir_negativos(valor):
 
 #- Formatação Brasileira via Pandas Styler e o estilo condicional
 #< Isso mantém os dados como números (para ordenar), mas exibe com vírgula e ponto
-df_estilizado = df_final.style.format({
+df_estilizado = df_para_estilizar.style.format({
     'ValidadeInicio': lambda x: x.strftime('%d/%m/%Y') if pd.notnull(x) else "",
     'ValidadeFim': lambda x: x.strftime('%d/%m/%Y') if pd.notnull(x) else "",
     'Neg%': "{:.1f}",
@@ -314,6 +336,10 @@ st.dataframe(
         # pode ser omitido para as colunas numéricas estilizadas.
     }
 )
+
+#- Exibição de Alerta
+if aviso_limite:
+    st.info(aviso_limite)
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 

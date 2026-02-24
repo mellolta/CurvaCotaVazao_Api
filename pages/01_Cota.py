@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 """
-Página da Api de visualização
+Api de visualização
 Visualiza os arquivos .csv resultante do módulo VerificaVazaoGerada.py
 a função de carregamento do csv está em Home.py
 
@@ -9,10 +9,15 @@ a função de carregamento do csv está em Home.py
 # $ Bibliotecas
 import streamlit as st
 import locale
+import pandas as pd
+
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais
 
-# Tenta configurar o locale para Português (Brasil)
+#- Aumenta o limite de elementos para formatação do Styler
+pd.set_option("styler.render.max_elements", 1000000)
+
+#- Tenta configurar o locale para Português (Brasil)
 try:
     # Tenta o padrão Linux/Unix (Streamlit Cloud)
     locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
@@ -37,14 +42,9 @@ if 'cota' not in st.session_state:
 
 #- Inicializa as chaves no st.session_state se não existirem, para evitar KeyError
 #< Isso garante que os valores persistam entre as re-execuções do script.
-if 'selected_UR' not in st.session_state:
-    st.session_state['selected_UR'] = None
-if 'selected_station' not in st.session_state:
-    st.session_state['selected_station'] = None
-if 'selected_ano' not in st.session_state:
-    st.session_state['selected_ano'] = None
-if 'selected_mes' not in st.session_state:
-    st.session_state['selected_mes'] = None
+for key in ['selected_UR', 'selected_station', 'selected_ano', 'selected_mes']:
+    if key not in st.session_state:
+        st.session_state[key] = None
 
 #- DataFrame cota (carregado na página principal e já definido no session_state)
 cota = st.session_state['cota']
@@ -66,13 +66,6 @@ st.subheader("Cota fora do intervalo da curva chave que está no banco SQL")
 #- Define 4 colunas para os selectboxes: UR | Estação | Ano | Mes
 col1, col2, col3, col4 = st.columns(4)
 
-# --- Função para limpar os filtros ---
-def limpar_filtros():
-    """Reseta os valores dos filtros no st.session_state."""
-    st.session_state['selected_UR'] = None
-    st.session_state['selected_station'] = None
-    st.session_state['selected_ano'] = None
-    st.session_state['selected_mes'] = None
 
 #- Obtém as seleções atuais do estado da sessão para cada filtro
 current_UR_selection = st.session_state['selected_UR']
@@ -82,17 +75,13 @@ current_mes_selection = st.session_state['selected_mes']
 
 # --- Função auxiliar para filtrar o DataFrame e obter opções dinâmicas ---
 # Esta função recebe o DataFrame completo e as seleções atuais dos outros filtros.
-# Ela retorna um DataFrame filtrado que será usado para extrair as opções para um selectbox específico.
 def get_filtered_df_for_options(df, ur=None, codigo=None, ano=None, mes=None):
+    """Retorna o DataFrame filtrado para gerar listas de opções dinâmicas."""
     temp_df = df.copy()
-    if ur is not None:
-        temp_df = temp_df[temp_df['UR'] == ur]
-    if codigo is not None:
-        temp_df = temp_df[temp_df['Codigo'] == codigo]
-    if ano is not None:
-        temp_df = temp_df[temp_df['Ano'] == ano]
-    if mes is not None:
-        temp_df = temp_df[temp_df['Mes'] == mes]
+    if ur is not None: temp_df = temp_df[temp_df['UR'] == ur]
+    if codigo is not None: temp_df = temp_df[temp_df['Codigo'] == codigo]
+    if ano is not None: temp_df = temp_df[temp_df['Ano'] == ano]
+    if mes is not None: temp_df = temp_df[temp_df['Mes'] == mes]
     return temp_df
 
 # --- Determina as opções para cada caixa de seleção com base nas outras seleções ---
@@ -151,7 +140,9 @@ ur_select = col1.selectbox(
 
 # --- Função de formatação para exibir Código - Nome ---
 def formatar_estacao(codigo):
-    # Busca o nome correspondente ao código no DataFrame original
+    """Formatação para exibição no selectbox.
+       Busca o nome correspondente ao código no DataFrame original
+    """
     nome = mapa_nomes.get(codigo, "Nome não encontrado")
     return f"{codigo} - {nome}"
 
@@ -181,18 +172,24 @@ mes_select = col4.selectbox(
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Botões para limpar filtros e exibir resultado
 
-col1, col2, col3 = st.columns(3)
-# --- Botão para limpar todos os filtros ---
-col1.button("Limpar Filtros", on_click=limpar_filtros)
+# --- Função para limpar os filtros ---
+def limpar_filtros():
+    """Reseta os valores dos filtros no st.session_state."""
+    for key in ['selected_UR', 'selected_station', 'selected_ano', 'selected_mes']:
+        st.session_state[key] = None
 
-# --- Botão Exibir Resultado ---
-col2.button("Exibir Resultado após seleção", type="primary")
+c_btn1, _, c_btn2 = st.columns([1, 4, 1])
+
+# --- Botão para limpar todos os filtros ---
+c_btn1.button("Limpar Filtros",          # legenda do botão
+              on_click=limpar_filtros,   # função a ser chamada quando o botão for clicado
+              use_container_width=False, # faz o botão ocupar toda a largura da coluna
+              type= "secondary")         # estilo do botão (opcional)
 
 # --- Aplica os filtros finais ao DataFrame a ser exibido ---
-# Começa com uma cópia do DataFrame original.
 exibe_cota = cota.copy()
 
-# Aplica cada filtro, se selecionado
+#- Aplica cada filtro, se selecionado
 if ur_select:
     exibe_cota = exibe_cota[exibe_cota['UR'] == ur_select]
 if codigo_select:

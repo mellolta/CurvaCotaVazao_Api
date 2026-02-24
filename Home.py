@@ -51,7 +51,7 @@ st.markdown("""
             :yellow[==== >>>> Ação necessária]: revisar a cota do dia ou atualizar a curva-chave no banco SQL.
 
             :green[Vazao] :grey[: Exibe as estações cuja vazão do banco SQL se difere da vazão calculada pela curva-chave (Qcalc) para a data correspondente]  
-            :yellow[==== >>>> Ação necessária]: reprocessar a curva chave no banco SQL para o período correspondente.
+            :yellow[==== >>>> Ação necessária]: reprocessar a vazão no banco SQL para o período correspondente.
 
             :green[Medicoes] :grey[: Resultado de cada medição com o desvio em relação a vazão calculada pela curva chave que está no banco SQL.]  
             :yellow[==== >>>> Atenção]: medições com desvio superior a 20% estão destacadas em vermelho.

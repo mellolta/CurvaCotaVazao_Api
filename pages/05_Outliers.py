@@ -189,7 +189,7 @@ col1, col2, col3 = st.columns(3)
 col1.button("Limpar Filtros", on_click=limpar_filtros)
 
 # --- Botão Exibir Resultado ---
-col2.button("Exibir Resultado após seleção", type="primary")
+# col2.button("Exibir Resultado após seleção", type="primary")
 
 # --- Aplica os filtros finais ao DataFrame a ser exibido ---
 # Começa com uma cópia do DataFrame original.
