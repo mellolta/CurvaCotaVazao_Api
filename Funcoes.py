@@ -10,6 +10,70 @@ import os
 import sys
 
 #< ------------------------------------------------------------------------------------------------------------------------------
+# --- FUNÇÃO DE CARREGAMENTO COM CACHE ---
+@st.cache_data
+def carregar_dados_globais():
+    """
+    Carrega todos os arquivos necessários de uma vez só.
+    O uso do cache_data garante que o processamento pesado ocorra apenas uma vez.
+    """
+    #- 1. Mapeia as chaves aos IDs dos segredos (IDs dos arquivos no Google Drive)
+    mapeamento_arquivos = {
+        'balanceamento': st.secrets["id_balanceamento"],
+        'cota': st.secrets["id_cota"],
+        'medicoes': st.secrets["id_medicoes"],
+        'outliers': st.secrets["id_outliers"],
+        'vazao': st.secrets["id_vazao"]
+    }
+    # mapeamento_arquivos = {
+    #     'balanceamento': 'balanceamento.csv',
+    #     'cota': 'cota.csv',
+    #     'medicoes': 'medicoes.csv',
+    #     'outliers': 'outliers.csv',
+    #     'vazao': 'vazao.csv'
+    # }
+    
+    datasets = {}
+    
+    for chave, file_id in mapeamento_arquivos.items():
+        try:
+            df = carregaCSV_drive(file_id)
+            # df = carregaCSV_local(file_id) 
+            
+            # Padronização: Já faz o rename aqui para evitar erros nas páginas
+            if 'EstacaoCodigo' in df.columns:
+                df.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
+            
+            #- lista de colunas para converter para DateTime
+            colunas_data = ['Data', 'ValidadeInicio', 'ValidadeFim']
+            for col in colunas_data:
+                if col in df.columns:
+                    df[col] = pd.to_datetime(df[col], format='%Y-%m-%d', errors='coerce')
+            
+            mapa_status = {
+                0: "Em branco",
+                1: "1: Validado",
+                2: "2: * (Estimado)",
+                3: "3: ? (Duvidoso)",
+                4: "4: # (Régua seca)",
+                5: "5: ! (Régua coberta)",
+                6: "6: @ (Rio seco)",
+                7: "7: / (Rio cortado)"
+                }
+            if 'Status' in df.columns:
+                # 1. Converte para numérico (caso venha como string ou float do CSV)
+                df['Status'] = pd.to_numeric(df['Status'], errors='coerce')
+                
+                # 2. Mapeia os valores e preenche o que sobrar (nulos) com "Em branco"
+                df['Status'] = df['Status'].map(mapa_status).fillna("Em branco")
+
+            datasets[chave] = df
+        except Exception as e:
+            st.error(f"Erro crítico ao carregar {chave}: {e}")
+            datasets[chave] = None
+            
+    return datasets
+#< ------------------------------------------------------------------------------------------------------------------------------
 """ Carrega o arquivo .csv como um DataFrame"""
 def carregaCSV_local(csv_file:str)-> pd.DataFrame:
     """ Carrega o arquivo .csv quando estiver usando a pasta local
@@ -82,3 +146,5 @@ def carregaCSV_drive(file_id):
     except Exception as e:
         st.error(f"Erro ao carregar os dados: {e}")
         return None
+
+#< ------------------------------------------------------------------------------------------------------------------------------

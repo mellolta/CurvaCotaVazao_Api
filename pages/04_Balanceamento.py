@@ -13,6 +13,7 @@ Aqui o filtro buscará pelo intervalo entre 'ValidadeInicio' e 'ValidadeFim'
 import streamlit as st
 import locale
 import pandas as pd
+import Funcoes as fc
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais
@@ -38,9 +39,17 @@ st.set_page_config(layout="wide")
 #- logo CPRM no canto superior direito
 st.image("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png", width=200)
 
+#< ------------------------------------------------------------------------------------------------------------------------------
+#- Chama a função (se já rodou, ele pega do cache instantaneamente)
+dados = fc.carregar_dados_globais()
+
+#- Grava no session_state para garantir compatibilidade
+for chave, df in dados.items():
+    st.session_state[chave] = df
+
 #- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
-if 'medicoes' not in st.session_state:
-    st.error("Dados não carregados. Por favor, retorne à página principal.")
+if 'balanceamento' not in st.session_state:
+    st.error("Dados não carregados.")
     st.stop()
 
 #- Inicializa as chaves no st.session_state se não existirem, para evitar KeyError
@@ -53,8 +62,8 @@ for key in ['selected_UR', 'selected_station', 'selected_ano', 'selected_mes']:
 balanceamento = st.session_state['balanceamento']
 
 #- Converte as colunas de data para o formato datetime
-balanceamento['ValidadeInicio'] = pd.to_datetime(balanceamento['ValidadeInicio'])
-balanceamento['ValidadeFim'] = pd.to_datetime(balanceamento['ValidadeFim'])
+# balanceamento['ValidadeInicio'] = pd.to_datetime(balanceamento['ValidadeInicio'])
+# balanceamento['ValidadeFim'] = pd.to_datetime(balanceamento['ValidadeFim'])
 
 #- Gera lista de ANOS baseada no range total do arquivo
 ano_min = balanceamento['ValidadeInicio'].min().year
@@ -260,8 +269,7 @@ else:
 exibe_balanceamento = exibe_balanceamento.drop(columns=['Desvio_Abs'])
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Formatação das colunas do DataFrame exibido
-
+#$ Limite de segurança para exibição com formatação condicional
 #- Limite de segurança para a exibição das linhas com formatação condicional (Styler)
 LIMITE_ESTILO = 1000
 total_linhas = len(exibe_balanceamento)
@@ -275,6 +283,7 @@ else:
     aviso_limite = None
 
 # < ------------------------------------------------------------------------------------------------------------------------------
+#$ Formatação das colunas do DataFrame exibido
 #- Função para definir a cor do texto baseada no valor
 def colorir_desvio(valor):
     try:
@@ -322,16 +331,19 @@ st.markdown("<br>", unsafe_allow_html=True) #- quebra de linha usando HTML para 
 #- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner
 st.dataframe(
     df_estilizado,
-    hide_index=True,
-    width="stretch",
+    hide_index=True, # Esconde o índice
+    width="stretch", # Faz a tabela ocupar toda a largura disponível
     column_config={
         "Codigo": st.column_config.NumberColumn("Código", format="%d"),
         "Curva": st.column_config.NumberColumn("Curva", format="%d"),
         "ValidadeInicio": "ValidadeInicio",
         "ValidadeFim": "ValidadeFim",
-        "QtdPontos": st.column_config.NumberColumn("Qtd", format="%d"),
+        "QtdPontos": st.column_config.NumberColumn("Qtd de medições", format="%d"),
         "Negativos": st.column_config.NumberColumn("Negativos", format="%d"),
         "Positivos": st.column_config.NumberColumn("Positivos", format="%d"),
+        "DesvioMedio": "Desvio Médio (%)",
+        "Neg%": "Negativos (%)",
+        "Pos%": "Positivos (%)",
         # Notas: Quando usamos .style.format, o 'format' do column_config 
         # pode ser omitido para as colunas numéricas estilizadas.
     }
@@ -344,11 +356,11 @@ if aviso_limite:
 #- Descrição do DataFrame exibido
 st.markdown("""
             **Descrição das Colunas**  
-            **'Curva':** Número da Curva (em relação à quantidade de curvas que existem para a estação)
-            **'Qtd':** Quantidade de medições que estão dentro do período de validade da curva-chave
-            **'Negativos':** Quantidade de medições com desvio negativo (vazão calculada pela curva-chave é maior que a vazão medida)
-            **'Positivos':** Quantidade de medições com desvio positivo (vazão calculada pela curva-chave é menor que a vazão medida)
-            **'DesvioMedio':** Desvio médio percentual entre as medições
+            **'Curva':** Número da Curva (em relação à quantidade de curvas que existem para a estação)  
+            **'Qtd de medições':** Quantidade de medições que estão dentro do período de validade da curva-chave  
+            **'Negativos':** Quantidade de medições com desvio negativo (vazão calculada pela curva-chave é maior que a vazão medida)  
+            **'Positivos':** Quantidade de medições com desvio positivo (vazão calculada pela curva-chave é menor que a vazão medida)  
+            **'DesvioMedio (%)':** Desvio médio percentual entre as medições  
             """)
 # < ------------------------------------------------------------------------------------------------------------------------------
 

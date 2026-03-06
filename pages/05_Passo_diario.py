@@ -12,6 +12,8 @@ a função de carregamento dos csv foi para Funcoes_Diversas.py
 import streamlit as st
 import pandas as pd
 import locale
+import Funcoes as fc
+
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais
 
@@ -36,9 +38,17 @@ st.set_page_config(layout="wide")
 #- logo CPRM no canto superior direito
 st.image("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png", width=200)
 
+#< ------------------------------------------------------------------------------------------------------------------------------
+#- Chama a função (se já rodou, ele pega do cache instantaneamente)
+dados = fc.carregar_dados_globais()
+
+#- Grava no session_state para garantir compatibilidade
+for chave, df in dados.items():
+    st.session_state[chave] = df
+
 #- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
 if 'outliers' not in st.session_state:
-    st.error("Dados não carregados. Por favor, retorne à página principal.")
+    st.error("Dados não carregados.")
     st.stop()
 
 #- Inicializa as chaves no st.session_state se não existirem, para evitar KeyError
@@ -203,8 +213,7 @@ if mes_select:
     exibe_outliers = exibe_outliers[exibe_outliers['Mes'] == mes_select]
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Formatação do DataFrame exibido
-
+#$ Limite de segurança para exibição com formatação condicional
 #- Limite de segurança para a exibição das linhas com formatação condicional (Styler)
 LIMITE_ESTILO = 1000
 total_linhas = len(exibe_outliers)
@@ -218,6 +227,7 @@ else:
     aviso_limite = None
 
 # < ------------------------------------------------------------------------------------------------------------------------------
+#$ Formatação do DataFrame exibido
 #- Função para definir a cor do texto baseada no valor
 def colorir_desvio(valor):
     try:
@@ -254,10 +264,11 @@ st.dataframe(
     width="stretch",
     column_config={
         "Codigo": st.column_config.NumberColumn("Código", format="%d"),
-        "Status": st.column_config.NumberColumn("Status", format="%d"),
+        # "Status": st.column_config.NumberColumn("Status", format="%d"),
         "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d"),
         "Cota_Anterior": st.column_config.NumberColumn("Cota Anterior (cm)", format="%d"),
         "Vazao": "Vazão (m³/s)",
+        "Status": "Status Cota",
         "Vazao_Anterior": "Vazão Anterior (m³/s)",
         "Diferença_vazao": "Diferença Vazao (m³/s)",
         "DifPer_vazao": "Diferença Vazao (%)",
@@ -277,8 +288,9 @@ if aviso_limite:
 #- Descrição do DataFrame exibido
 st.markdown("""
             **Descrição das Colunas**  
-            **'Status':** None: sem informação de status, 0: em branco, 1: validado, 2: * (estimado), 3: ? (duvidoso), 4: # (régua seca), 5: ! (régua coberta), 6: @ (rio seco),  7: / (rio cortado)  
-             
+            **'Status Cota':** Classificação da cota do dia.
+            **'Diferença Vazão (%)':** Diferença percentual entre a vazão do dia e a vazão do dia anterior.  
+            **'Diferença Cota (%)':** Diferença percentual entre a cota do dia e a cota do dia anterior.             
             """)
 # < ------------------------------------------------------------------------------------------------------------------------------
 

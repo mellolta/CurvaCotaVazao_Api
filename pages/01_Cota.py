@@ -10,6 +10,7 @@ a função de carregamento do csv está em Home.py
 import streamlit as st
 import locale
 import pandas as pd
+import Funcoes as fc
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais
@@ -35,9 +36,17 @@ st.set_page_config(layout="wide")
 #- logo CPRM no canto superior direito
 st.image("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png", width=200)
 
+#< ------------------------------------------------------------------------------------------------------------------------------
+#- Chama a função (se já rodou, ele pega do cache instantaneamente)
+dados = fc.carregar_dados_globais()
+
+#- Grava no session_state para garantir compatibilidade
+for chave, df in dados.items():
+    st.session_state[chave] = df
+
 #- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
 if 'cota' not in st.session_state:
-    st.error("Dados não carregados. Por favor, retorne à página principal.")
+    st.error("Dados não carregados.")
     st.stop()
 
 #- Inicializa as chaves no st.session_state se não existirem, para evitar KeyError
@@ -200,12 +209,7 @@ if mes_select:
     exibe_cota = exibe_cota[exibe_cota['Mes'] == mes_select]
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Formatação do DataFrame exibido
-
-#- Descrição do DataFrame exibido
-st.markdown(f"**Número de registros:** {len(exibe_cota)}")
-st.markdown("<br>", unsafe_allow_html=True) #- quebra de linha usando HTML para espaçamento
-
+#$ Limite de segurança para exibição com formatação condicional
 
 #- Limite de segurança para a exibição das linhas com formatação condicional (Styler)
 LIMITE_ESTILO = 1000
@@ -219,18 +223,27 @@ else:
     df_para_estilizar = exibe_cota
     aviso_limite = None
 
-
 # < ------------------------------------------------------------------------------------------------------------------------------
-#- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner (formatado sem mexer nos tipos dos dados)
+#$ Exibe o DataFrame resultante
+
+#- Descrição do DataFrame exibido
+st.markdown(f"**Número de registros:** {len(exibe_cota)}")
+st.markdown("<br>", unsafe_allow_html=True) #- quebra de linha usando HTML para espaçamento
+
+#- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner 
 st.dataframe(
     df_para_estilizar,
-    hide_index=True, # Exibe o índice para melhor referência
-    width="stretch",
+    hide_index=True, # Esconde o índice
+    width="stretch", # Faz a tabela ocupar toda a largura disponível
     column_config={
+        "Codigo": st.column_config.NumberColumn("Código", format="%d"),
         "Data": st.column_config.DatetimeColumn("Data", format="DD/MM/YYYY"),
         "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d"),
-        "Status": st.column_config.NumberColumn("Status", format="%d"),
-        "Codigo": st.column_config.NumberColumn("Código", format="%d"),
+        "Status": "Status Cota",
+        "ValidadeInicio": st.column_config.DatetimeColumn("Validade Início", format="DD/MM/YYYY"),
+        "ValidadeFim": st.column_config.DatetimeColumn("Validade Fim", format="DD/MM/YYYY"),
+        "Lim_inf": st.column_config.NumberColumn("Limite Inf. (cm)", format="%d"),
+        "Lim_sup": st.column_config.NumberColumn("Limite Sup. (cm)", format="%d"),
         "Ano": st.column_config.NumberColumn("Ano", format="%d"),
         "Mes": st.column_config.NumberColumn("Mês", format="%d"),
     }
@@ -243,10 +256,13 @@ if aviso_limite:
 #- Descrição do DataFrame exibido
 st.markdown("""
             **Descrição das Colunas**  
-            **'Status':** None: sem informação de status, 0: em branco, 1: validado, 2: * (estimado), 3: ? (duvidoso), 4: # (régua seca), 5: ! (régua coberta), 6: @ (rio seco),  7: / (rio cortado)  
-             
-            """)
+            **'Status Cota':** Classificação da cota do dia.
+            **'Validade Início':** Data de início da validade da curva-chave associada à estação  
+            **'Validade Fim':** Data de fim da validade da curva-chave associada à estação  
+            **'Limite Inf. (cm)':** Limite inferior da curva-chave para a data correspondente
+            **'Limite Sup. (cm)':** Limite superior da curva-chave para a data correspondente
+            **'Ano':** Ano da medição
+            **'Mês':** Mês da medição
+            """)            
 # < ------------------------------------------------------------------------------------------------------------------------------
-
-
 

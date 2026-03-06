@@ -10,6 +10,7 @@ a função de carregamento do csv está em Home.py
 import streamlit as st
 import locale
 import pandas as pd
+import Funcoes as fc
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais
@@ -34,9 +35,17 @@ st.set_page_config(layout="wide")
 #- logo CPRM no canto superior direito
 st.image("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png", width=200)
 
+#< ------------------------------------------------------------------------------------------------------------------------------
+#- Chama a função (se já rodou, ele pega do cache instantaneamente)
+dados = fc.carregar_dados_globais()
+
+#- Grava no session_state para garantir compatibilidade
+for chave, df in dados.items():
+    st.session_state[chave] = df
+
 #- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
 if 'medicoes' not in st.session_state:
-    st.error("Dados não carregados. Por favor, retorne à página principal.")
+    st.error("Dados não carregados.")
     st.stop()
 
 #- Inicializa as chaves no st.session_state se não existirem, para evitar KeyError
@@ -202,15 +211,21 @@ if mes_select:
     exibe_medicoes = exibe_medicoes[exibe_medicoes['Mes'] == mes_select]
 
 #$ Ordenação dos Dados críticos
+#- Cria uma coluna temporária para o desvio absoluto (facilita a ordenação)
+exibe_medicoes['Desvio_Abs'] = exibe_medicoes['Desvio'].abs()
+
 #- Botão para ordenar pelos casos mais críticos
 if c_btn2.button("🔥 Ordenar por Maior Desvio", 
                  use_container_width=True, 
                  type="primary"):
-    exibe_medicoes = exibe_medicoes.sort_values(by='Desvio_ABS', ascending=False)
+    exibe_medicoes = exibe_medicoes.sort_values(by='Desvio_Abs', ascending=False)
     st.success("Ordenado pelos maiores desvios absolutos.")
 else:
     # Ordem padrão (geralmente por data ou como vier do banco)
     exibe_medicoes = exibe_medicoes.sort_values(by='Data', ascending=False)
+
+#- Remove a coluna temporária para não poluir a tabela final
+exibe_medicoes = exibe_medicoes.drop(columns=['Desvio_Abs'])
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 # --- BLOCO DE MÉTRICAS --- 
@@ -236,8 +251,7 @@ if not exibe_medicoes.empty:
     st.divider() # Linha visual para separar das tabelas
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Formatação das colunas do DataFrame exibido
-
+#$ Limite de segurança para exibição com formatação condicional
 #- Limite de segurança para a exibição das linhas com formatação condicional (Styler)
 LIMITE_ESTILO = 1000
 total_linhas = len(exibe_medicoes)
@@ -251,6 +265,7 @@ else:
     aviso_limite = None
 
 # < ------------------------------------------------------------------------------------------------------------------------------
+#$ Formatação das colunas do DataFrame exibido
 #- Função para definir a cor do texto baseada no valor
 def colorir_desvio(valor):
     try:
@@ -272,7 +287,7 @@ df_estilizado = df_para_estilizar.style.format({
     'Prof': "{:.3f}",
     'Qcalc': "{:.3f}",
     'Desvio': "{:.2f}",
-    'Desvio_ABS': "{:.2f}",
+    # 'Desvio_ABS': "{:.2f}",
     'a': "{:.4f}",
     'h0': "{:.2f}",
     'n': "{:.3f}",
@@ -292,12 +307,15 @@ st.dataframe(
     column_config={
         "Data": st.column_config.DatetimeColumn("Data", format="DD/MM/YYYY"),
         "Codigo": st.column_config.NumberColumn("Código", format="%d"),
+        "ValidadeInicio": st.column_config.DatetimeColumn("Validade Início", format="DD/MM/YYYY"),
+        "ValidadeFim": st.column_config.DatetimeColumn("Validade Fim", format="DD/MM/YYYY"),
         "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d"),
         "Vazao": "Vazão (m³/s)",
         "NumMed": st.column_config.NumberColumn("NumMed", format="%d"),
         "Curva": st.column_config.NumberColumn("Curva", format="%d"),
-        "Lim_inf": st.column_config.NumberColumn("Lim_inf (cm)", format="%d"),
-        "Lim_sup": st.column_config.NumberColumn("Lim_sup (cm)", format="%d"),
+        "Lim_inf": st.column_config.NumberColumn("Limite Inf. (cm)", format="%d"),
+        "Lim_sup": st.column_config.NumberColumn("Limite Sup. (cm)", format="%d"),
+        "medidorvazao": st.column_config.NumberColumn("Medidor Vazão", format="%d"),
         "Ano": st.column_config.NumberColumn("Ano", format="%d"),
         "Mes": st.column_config.NumberColumn("Mês", format="%d"),
         # Notas: Quando usamos .style.format, o 'format' do column_config 

@@ -59,45 +59,17 @@ st.markdown("""
             :green[Balanceamento] :grey[: Resultado equivalente à saída 449 do SIADH "449_Características das Curva-Chave_Por Periodo Validade.xls"]  
             :yellow[==== >>>> Atenção]: curvas com desvio superior a 20% ou balanceamento das medições superior a 30%-70% estão destacadas em vermelho.
 
-            :green[Outliers] :grey[: Compara a cota e a vazão com o dia anterior ]
+            :green[Passo diário] :grey[: Compara a cota e a vazão com o dia anterior ]
             """)
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 #$ Carregamento dos arquivos de dados
 
-#- 1. Mapeia as chaves aos IDs dos segredos (IDs dos arquivos no Google Drive)
-mapeamento_arquivos = {
-    'balanceamento': st.secrets["id_balanceamento"],
-    'cota': st.secrets["id_cota"],
-    'medicoes': st.secrets["id_medicoes"],
-    'outliers': st.secrets["id_outliers"],
-    'vazao': st.secrets["id_vazao"]
-}
-
-#- Para desenvolvmentos local
-# mapeamento_arquivos = {
-#     'balanceamento': 'balanceamento.csv',
-#     'cota': 'cota.csv',
-#     'medicoes': 'medicoes.csv',
-#     'outliers': 'outliers.csv',
-#     'vazao': 'vazao.csv'
-# }
-
-#- 2. Inicializa e Carrega em um único loop
-for chave, file_id in mapeamento_arquivos.items():
-    
-    #- cria as chaves no st.session_state
-    if chave not in st.session_state:
-        st.session_state[chave] = None
-    
-    #- carrega os arquivos
-    if st.session_state[chave] is None:
-        try:
-            st.session_state[chave] = fc.carregaCSV_drive(file_id)
-            # st.session_state[chave] = fc.carregaCSV_local(file_id)
-        except Exception as e:
-            st.error(f"Erro ao carregar o arquivo de {chave}: {e}")
-
+#- O spinner mostra uma animação e a mensagem enquanto a função roda
+with st.spinner('Carregando bases de dados...'):
+    dados = fc.carregar_dados_globais()
+    for chave, df in dados.items():
+        st.session_state[chave] = df
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 

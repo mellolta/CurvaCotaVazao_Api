@@ -10,6 +10,7 @@ a função de carregamento do csv está em Home.py
 import streamlit as st
 import locale
 import pandas as pd
+import Funcoes as fc
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais
@@ -35,9 +36,17 @@ st.set_page_config(layout="wide")
 #- logo CPRM no canto superior direito
 st.image("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png", width=200)
 
+#< ------------------------------------------------------------------------------------------------------------------------------
+#- Chama a função (se já rodou, ele pega do cache instantaneamente)
+dados = fc.carregar_dados_globais()
+
+#- Grava no session_state para garantir compatibilidade
+for chave, df in dados.items():
+    st.session_state[chave] = df
+
 #- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
 if 'vazao' not in st.session_state:
-    st.error("Dados não carregados. Por favor, retorne à página principal.")
+    st.error("Dados não carregados.")
     st.stop()
 
 #- Inicializa as chaves no st.session_state se não existirem, para evitar KeyError
@@ -240,8 +249,7 @@ if not exibe_vazao.empty:
     st.divider() # Linha visual para separar das tabelas
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Formatação das colunas do DataFrame exibido
-
+#$ Limite de segurança para exibição com formatação condicional
 #- Limite de segurança para a exibição das linhas com formatação condicional (Styler)
 LIMITE_ESTILO = 1000
 total_linhas = len(exibe_vazao)
@@ -255,6 +263,7 @@ else:
     aviso_limite = None
 
 # < ------------------------------------------------------------------------------------------------------------------------------
+#$ Formatação das colunas do DataFrame exibido
 #- Função para definir a cor do texto baseada no valor
 def colorir_desvio(valor):
     try:
@@ -272,14 +281,13 @@ df_estilizado = df_para_estilizar.style.format({
     'Vazao': "{:.3f}",
     'Qcalc': "{:.3f}",
     'Desvio': "{:.2f}",
-    'Status': "{:.0f}",
     'Ano': "{:.0f}",
     'Mes': "{:.0f}",
 }, decimal=',', thousands='.') \
 .map(colorir_desvio, subset=['Desvio'])
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Exibe o DataFrame resultante com a formatação aplicada
+#$ Exibe o DataFrame resultante
 
 #- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner
 st.dataframe(
@@ -287,11 +295,16 @@ st.dataframe(
     hide_index=True,
     width="stretch",
     column_config={
-        "Data": st.column_config.DatetimeColumn("Data", format="DD/MM/YYYY"),
         "Codigo": st.column_config.NumberColumn("Código", format="%d"),
+        "Data": st.column_config.DatetimeColumn("Data", format="DD/MM/YYYY"),
         "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d"),
         "Vazao": "Vazão (m³/s)",
         "Qcalc": "Qcalc (m³/s)",
+        "Status": "Status Cota",
+        "ValidadeInicio": st.column_config.DatetimeColumn("Validade Início", format="DD/MM/YYYY"),
+        "ValidadeFim": st.column_config.DatetimeColumn("Validade Fim", format="DD/MM/YYYY"),
+        "Lim_inf": st.column_config.NumberColumn("Limite Inf. (cm)", format="%d"),
+        "Lim_sup": st.column_config.NumberColumn("Limite Sup. (cm)", format="%d"),
         "Ano": st.column_config.NumberColumn("Ano", format="%d"),
         "Mes": st.column_config.NumberColumn("Mês", format="%d"),
         # Notas: Quando usamos .style.format, o 'format' do column_config 
@@ -307,7 +320,7 @@ if aviso_limite:
 st.markdown("""
             **Descrição das Colunas**  
             **'Desvio':** Diferença entre a vazão que está no banco SQL e a vazão calculada pela curva chave (Qcalc).  
-            **'Status':** None: sem informação de status, 0: em branco, 1: validado, 2: * (estimado), 3: ? (duvidoso), 4: # (régua seca), 5: ! (régua coberta), 6: @ (rio seco),  7: / (rio cortado)  
+            **'Status Cota':** Classificação da cota do dia.
              
             """)
 
