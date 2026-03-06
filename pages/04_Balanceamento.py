@@ -341,6 +341,15 @@ st.dataframe(
 if aviso_limite:
     st.info(aviso_limite)
 
+#- Descrição do DataFrame exibido
+st.markdown("""
+            **Descrição das Colunas**  
+            **'Curva':** Número da Curva (em relação à quantidade de curvas que existem para a estação)
+            **'Qtd':** Quantidade de medições que estão dentro do período de validade da curva-chave
+            **'Negativos':** Quantidade de medições com desvio negativo (vazão calculada pela curva-chave é maior que a vazão medida)
+            **'Positivos':** Quantidade de medições com desvio positivo (vazão calculada pela curva-chave é menor que a vazão medida)
+            **'DesvioMedio':** Desvio médio percentual entre as medições
+            """)
 # < ------------------------------------------------------------------------------------------------------------------------------
 
 

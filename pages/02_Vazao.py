@@ -281,12 +281,6 @@ df_estilizado = df_para_estilizar.style.format({
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Exibe o DataFrame resultante com a formatação aplicada
 
-#- Descrição do DataFrame exibido
-st.markdown("**Descrição das Colunas**")
-st.markdown("**'Desvio':** Diferença percentual entre a vazão do banco SQL e a vazão calculada pela curva-chave (Qcalc). ")
-st.markdown("<br>", unsafe_allow_html=True) #- quebra de linha usando HTML para espaçamento
-
-
 #- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner
 st.dataframe(
     df_estilizado,
@@ -308,5 +302,13 @@ st.dataframe(
 #- Exibição de Alerta
 if aviso_limite:
     st.info(aviso_limite)
+
+#- Descrição do DataFrame exibido
+st.markdown("""
+            **Descrição das Colunas**  
+            **'Desvio':** Diferença entre a vazão que está no banco SQL e a vazão calculada pela curva chave (Qcalc).  
+            **'Status':** None: sem informação de status, 0: em branco, 1: validado, 2: * (estimado), 3: ? (duvidoso), 4: # (régua seca), 5: ! (régua coberta), 6: @ (rio seco),  7: / (rio cortado)  
+             
+            """)
 
 # < ------------------------------------------------------------------------------------------------------------------------------

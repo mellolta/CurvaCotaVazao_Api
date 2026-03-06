@@ -5,22 +5,9 @@ Funções
 #$ Bibliotecas
 import pandas as pd
 import streamlit as st
+from pathlib import Path
 import os
 import sys
-
-def get_base_path():
-    """
-    Retorna o diretório onde o executável (Home.exe) ou o script está.
-    """
-    # Se estiver rodando como executável PyInstaller (--onefile)
-    if getattr(sys, 'frozen', False):
-        # ⚠️ MUDANÇA: Retorna o diretório onde o EXECUTÁVEL está.
-        # Em modo onefile, este é o caminho mais confiável.
-        return os.path.dirname(os.path.dirname(sys.executable))
-    else:
-        # Se for um script Python normal (desenvolvimento)
-        # Retorna o diretório do próprio Funcoes.py
-        return os.path.dirname(os.path.abspath(__file__))
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 """ Carrega o arquivo .csv como um DataFrame"""
@@ -28,16 +15,19 @@ def carregaCSV_local(csv_file:str)-> pd.DataFrame:
     """ Carrega o arquivo .csv quando estiver usando a pasta local
         - transforma a coluna 'Data' para DateTime
     """
+    #- 1. Definimos o diretório base como um objeto Path
+    base_dir = Path(r'C:\Users\luis.mello\Documents\Python\Scripts\Projetos_CPRM\CurvaCotaVazao\Resultado\csv')
     
-    # 👈 NOVO: Lógica para corrigir o caminho
-    base_path = get_base_path()
+    #- 2. Extraímos apenas o nome do arquivo (caso o usuário passe um caminho relativo)
+    # Exemplo: './dados.csv' vira 'dados.csv'
+    nome_arquivo = Path(csv_file).name
     
-    # Constrói o caminho completo: 
-    # Junta o diretório base com o caminho relativo (Ex: ./csv/desvio.csv).
-    # O .lstrip('./') remove './' ou '.\' inicial se houver.
-    caminho_completo = os.path.join(base_path, csv_file.lstrip('./').lstrip('.\\'))
+    #- 3. Criamos o caminho completo usando o operador '/' (exclusivo do pathlib)
+    caminho_completo = base_dir / nome_arquivo
     
-    # ------------------------------------------------------------------------
+    #- Verificação amigável de erro
+    if not caminho_completo.exists():
+        raise FileNotFoundError(f"⚠️ O arquivo não foi encontrado em: {caminho_completo}")
     
     # O pandas tentará ler o arquivo do caminho_completo
     df = pd.read_csv(caminho_completo, 
@@ -51,10 +41,14 @@ def carregaCSV_local(csv_file:str)-> pd.DataFrame:
     if df.columns[0] == 'Unnamed: 0':
         df.drop(columns=[df.columns[0]], inplace=True)
 
-    if 'Data' in df.columns:
-        # 'coerce' força a conversão, colocando NaT (Not a Time) em valores inválidos.
-        df['Data'] = pd.to_datetime(df['Data'], format='%Y-%m-%d', errors='coerce')
-    
+    #- Lista de colunas para converter para DateTime
+    colunas_data = ['Data', 'ValidadeInicio', 'ValidadeFim']
+
+    #- Conversão de Data
+    for col in colunas_data:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], format='%Y-%m-%d', errors='coerce')
+        
     return df
 
 #< ------------------------------------------------------------------------------------------------------------------------------

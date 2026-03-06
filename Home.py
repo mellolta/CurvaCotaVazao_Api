@@ -74,6 +74,15 @@ mapeamento_arquivos = {
     'vazao': st.secrets["id_vazao"]
 }
 
+#- Para desenvolvmentos local
+# mapeamento_arquivos = {
+#     'balanceamento': 'balanceamento.csv',
+#     'cota': 'cota.csv',
+#     'medicoes': 'medicoes.csv',
+#     'outliers': 'outliers.csv',
+#     'vazao': 'vazao.csv'
+# }
+
 #- 2. Inicializa e Carrega em um único loop
 for chave, file_id in mapeamento_arquivos.items():
     
@@ -85,10 +94,9 @@ for chave, file_id in mapeamento_arquivos.items():
     if st.session_state[chave] is None:
         try:
             st.session_state[chave] = fc.carregaCSV_drive(file_id)
+            # st.session_state[chave] = fc.carregaCSV_local(file_id)
         except Exception as e:
             st.error(f"Erro ao carregar o arquivo de {chave}: {e}")
-
-
 
 
 #< ------------------------------------------------------------------------------------------------------------------------------

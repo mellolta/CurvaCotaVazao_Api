@@ -206,19 +206,24 @@ if mes_select:
 st.markdown(f"**Número de registros:** {len(exibe_cota)}")
 st.markdown("<br>", unsafe_allow_html=True) #- quebra de linha usando HTML para espaçamento
 
-#- Verifica se há algum filtro ativo (se as seleções não são None)
-filtros_ativos = any([ur_select, codigo_select, ano_select, mes_select])
 
-#- Só corta o DataFrame se não tiver filtro
-if not filtros_ativos:
-    df_final = exibe_cota.head(100)
+#- Limite de segurança para a exibição das linhas com formatação condicional (Styler)
+LIMITE_ESTILO = 1000
+total_linhas = len(exibe_cota)
+
+#- Se for maior que o limite, pegamos apenas o topo para o Styler não quebrar
+if total_linhas > LIMITE_ESTILO:
+    df_para_estilizar = exibe_cota.head(LIMITE_ESTILO)
+    aviso_limite = f"⚠️ Exibindo as primeiras {LIMITE_ESTILO} linhas. Use os filtros para ver mais dados."
 else:
-    df_final = exibe_cota
+    df_para_estilizar = exibe_cota
+    aviso_limite = None
+
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner (formatado sem mexer nos tipos dos dados)
 st.dataframe(
-    df_final,
+    df_para_estilizar,
     hide_index=True, # Exibe o índice para melhor referência
     width="stretch",
     column_config={
@@ -231,6 +236,16 @@ st.dataframe(
     }
 )
 
+#- Exibição de Alerta
+if aviso_limite:
+    st.info(aviso_limite)
+
+#- Descrição do DataFrame exibido
+st.markdown("""
+            **Descrição das Colunas**  
+            **'Status':** None: sem informação de status, 0: em branco, 1: validado, 2: * (estimado), 3: ? (duvidoso), 4: # (régua seca), 5: ! (régua coberta), 6: @ (rio seco),  7: / (rio cortado)  
+             
+            """)
 # < ------------------------------------------------------------------------------------------------------------------------------
 
 

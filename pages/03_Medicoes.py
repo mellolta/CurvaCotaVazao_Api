@@ -284,10 +284,6 @@ df_estilizado = df_para_estilizar.style.format({
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Exibe o DataFrame resultante com a formatação aplicada
 
-#- Descrição do DataFrame exibido
-st.markdown(f"**Número de registros:** {len(exibe_medicoes)}")
-st.markdown("<br>", unsafe_allow_html=True) #- quebra de linha usando HTML para espaçamento
-
 #- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner
 st.dataframe(
     df_estilizado,
@@ -313,7 +309,12 @@ st.dataframe(
 if aviso_limite:
     st.info(aviso_limite)
 
+#- Descrição do DataFrame exibido
+st.markdown("""
+            **Descrição das Colunas**  
+            **'Qcalc':** Vazão calculada pela curva chave.  
+            **'Desvio':** Diferença entre a Vazão medida e a Vazão calculada pela curva chave (Qcalc).  
+            **'Curva':** Número da curva chave da estação correspondente.
+            """)
 # < ------------------------------------------------------------------------------------------------------------------------------
-
-
 
