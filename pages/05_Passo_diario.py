@@ -12,7 +12,7 @@ a função de carregamento dos csv foi para Funcoes_Diversas.py
 import streamlit as st
 import pandas as pd
 import locale
-import Funcoes as fc
+import funcoes as fc
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais

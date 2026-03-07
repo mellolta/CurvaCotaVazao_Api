@@ -13,7 +13,7 @@ Aqui o filtro buscará pelo intervalo entre 'ValidadeInicio' e 'ValidadeFim'
 import streamlit as st
 import locale
 import pandas as pd
-import Funcoes as fc
+import funcoes as fc
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais

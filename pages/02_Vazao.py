@@ -10,7 +10,7 @@ a função de carregamento do csv está em Home.py
 import streamlit as st
 import locale
 import pandas as pd
-import Funcoes as fc
+import funcoes as fc
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais

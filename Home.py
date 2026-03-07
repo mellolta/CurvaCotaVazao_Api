@@ -7,15 +7,12 @@ Página inicial da aplicação Streamlit
 Aqui é feito o carregamento dos arquivos, a exibição do título e descrição da aplicação.
 Os arquivos são carregados do Google Drive usando os IDs armazenados em st.secrets.
 
-
-Para rodar a aplicação use o comando:
-streamlit run .\Home.py
 """
  #<===============================================================================================================================
 
 #$ Bibliotecas
 import streamlit as st
-import Funcoes as fc
+import funcoes as fc
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais
