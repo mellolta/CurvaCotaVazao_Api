@@ -288,9 +288,9 @@ if aviso_limite:
 #- Descrição do DataFrame exibido
 st.markdown("""
             **Descrição das Colunas**  
-            **'Status Cota':** Classificação da cota do dia.
+            **'Status Cota':** Classificação da cota do dia.  
             **'Diferença Vazão (%)':** Diferença percentual entre a vazão do dia e a vazão do dia anterior.  
-            **'Diferença Cota (%)':** Diferença percentual entre a cota do dia e a cota do dia anterior.             
+            **'Diferença Cota (%)':** Diferença percentual entre a cota do dia e a cota do dia anterior.  
             """)
 # < ------------------------------------------------------------------------------------------------------------------------------
 

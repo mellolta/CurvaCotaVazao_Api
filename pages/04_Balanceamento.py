@@ -338,7 +338,7 @@ st.dataframe(
         "Curva": st.column_config.NumberColumn("Curva", format="%d"),
         "ValidadeInicio": "ValidadeInicio",
         "ValidadeFim": "ValidadeFim",
-        "QtdPontos": st.column_config.NumberColumn("Qtd de medições", format="%d"),
+        "QtdPontos": st.column_config.NumberColumn("Qtd medições", format="%d"),
         "Negativos": st.column_config.NumberColumn("Negativos", format="%d"),
         "Positivos": st.column_config.NumberColumn("Positivos", format="%d"),
         "DesvioMedio": "Desvio Médio (%)",

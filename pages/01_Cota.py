@@ -256,13 +256,13 @@ if aviso_limite:
 #- Descrição do DataFrame exibido
 st.markdown("""
             **Descrição das Colunas**  
-            **'Status Cota':** Classificação da cota do dia.
+            **'Status Cota':** Classificação da cota do dia.  
             **'Validade Início':** Data de início da validade da curva-chave associada à estação  
             **'Validade Fim':** Data de fim da validade da curva-chave associada à estação  
-            **'Limite Inf. (cm)':** Limite inferior da curva-chave para a data correspondente
-            **'Limite Sup. (cm)':** Limite superior da curva-chave para a data correspondente
-            **'Ano':** Ano da medição
-            **'Mês':** Mês da medição
+            **'Limite Inf. (cm)':** Limite inferior da curva-chave para a data correspondente  
+            **'Limite Sup. (cm)':** Limite superior da curva-chave para a data correspondente  
+            **'Ano':** Ano da medição  
+            **'Mês':** Mês da medição  
             """)            
 # < ------------------------------------------------------------------------------------------------------------------------------
 

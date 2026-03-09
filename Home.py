@@ -57,6 +57,7 @@ st.markdown("""
             :yellow[==== >>>> Atenção]: curvas com desvio superior a 20% ou balanceamento das medições superior a 30%-70% estão destacadas em vermelho.
 
             :green[Passo diário] :grey[: Compara a cota e a vazão com o dia anterior ]
+            :yellow[==== >>>> Atenção]: filtros ativos para diferenças percentuais acima de de 50% (e absolutas maiores que 10).
             """)
 
 #< ------------------------------------------------------------------------------------------------------------------------------
