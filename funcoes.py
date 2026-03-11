@@ -187,8 +187,15 @@ def menu_filtros_multi(df_input):
     Cria menu superior global que preserva seleção em todas as páginas.
     Trata automaticamente a lógica de Ano/Mês para Data ou ValidadeInicio/Fim.
     """
-    df = df_input.copy()
-    
+    # 1. INICIALIZAÇÃO DE ESTADO PERSISTENTE
+    chaves_globais = ['filtro_ur', 'filtro_cod', 'filtro_ano', 'filtro_mes', 
+                    'w_ur', 'w_cod', 'w_ano', 'w_mes']
+
+    for k in chaves_globais:
+        if k not in st.session_state:
+            st.session_state[k] = []
+        df = df_input.copy()
+        
     # Padronização de nomes de colunas
     if 'EstacaoCodigo' in df.columns:
         df.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
@@ -252,7 +259,7 @@ def menu_filtros_multi(df_input):
         st.multiselect(
             'Unidade Regional', options=ops, 
             key='w_ur', # Chave do widget
-            default=validar_default(st.session_state.filtro_ur, ops),
+            # default=validar_default(st.session_state.filtro_ur, ops),
             on_change=atualizar_filtros
         )
 
@@ -261,7 +268,7 @@ def menu_filtros_multi(df_input):
         st.multiselect(
             'Estação', options=ops, 
             key='w_cod',
-            default=validar_default(st.session_state.filtro_cod, ops),
+            # default=validar_default(st.session_state.filtro_cod, ops),
             format_func=lambda c: f"{c} - {mapa_nomes.get(c, 'N/A')}",
             on_change=atualizar_filtros
         )
@@ -271,7 +278,7 @@ def menu_filtros_multi(df_input):
         st.multiselect(
             'Ano', options=ops, 
             key='w_ano',
-            default=validar_default(st.session_state.filtro_ano, ops),
+            # default=validar_default(st.session_state.filtro_ano, ops),
             on_change=atualizar_filtros
         )
 
@@ -280,7 +287,7 @@ def menu_filtros_multi(df_input):
         st.multiselect(
             'Mês', options=ops, 
             key='w_mes',
-            default=validar_default(st.session_state.filtro_mes, ops),
+            # default=validar_default(st.session_state.filtro_mes, ops),
             on_change=atualizar_filtros
         )
     
