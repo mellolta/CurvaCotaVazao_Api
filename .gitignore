@@ -21,3 +21,7 @@ bkp/
 # Arquivos de sistema
 .DS_Store
 Thumbs.db
+
+# Arquivos em edição
+pages/06_Curvas_chave.py
+
