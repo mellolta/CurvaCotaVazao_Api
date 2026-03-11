@@ -9,6 +9,7 @@ a função de carregamento do csv está em Home.py
 # $ Bibliotecas
 import streamlit as st
 import pandas as pd
+import numpy as np
 import plotly.graph_objects as go
 import funcoes as fc
 
@@ -20,15 +21,55 @@ fc.configuracoes_iniciais()
 st.subheader("Medição e desvio em relação à curva-chave que está no banco SQL")
 
 #- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
-if 'medicoes' not in st.session_state:
+# if 'medicoes' not in st.session_state:
+if 'medicoes' not in st.session_state or 'curvas' not in st.session_state:
     st.error("Dados não carregados.")
     st.stop()
 
 #- DataFrame medicoes
 medicoes = st.session_state['medicoes']
 
+# --- 1. FILTRO GLOBAL ---
 #- Chama a função que retorna o dataframe já filtrado
-df_filtrado = fc.menu_filtros_multi(medicoes)
+df_med_filtrado = fc.menu_filtros_multi(medicoes)
+
+# < ------------------------------------------------------------------------------------------------------------------------------
+# --- 2. APLICAÇÃO DOS FILTROS NA CURVA (ESTAÇÃO + TEMPO) ---
+estacoes_sel = st.session_state.filtro_cod
+anos_sel = st.session_state.filtro_ano
+meses_sel = st.session_state.filtro_mes
+
+df_curvas_filtrado = st.session_state['curvas'].copy()
+
+# Filtro por Estação
+if estacoes_sel:
+    df_curvas_filtrado = df_curvas_filtrado[df_curvas_filtrado['Codigo'].isin(estacoes_sel)]
+
+# --- CORREÇÃO DA LÓGICA DE INTERVALO (ANOS) ---
+if anos_sel:
+    # Pegamos o menor e o maior ano selecionados no multiselect
+    ano_min_user = min(anos_sel)
+    ano_max_user = max(anos_sel)
+    
+    # Lógica de Interseção:
+    # A curva é válida se começou ANTES ou DURANTE o último ano filtrado
+    # E se terminou DEPOIS ou DURANTE o primeiro ano filtrado
+    mask_ano = (df_curvas_filtrado['ValidadeInicio'].dt.year <= ano_max_user) & \
+               (df_curvas_filtrado['ValidadeFim'].dt.year >= ano_min_user)
+    
+    df_curvas_filtrado = df_curvas_filtrado[mask_ano]
+
+# --- CORREÇÃO DA LÓGICA DE INTERVALO (MESES) ---
+if meses_sel:
+    # Para meses, se quisermos ser rigorosos na interseção dentro do ano:
+    mes_min_user = min(meses_sel)
+    mes_max_user = max(meses_sel)
+    
+    # A curva deve ter algum mês de validade que se sobreponha ao range de meses selecionado
+    mask_mes = (df_curvas_filtrado['ValidadeInicio'].dt.month <= mes_max_user) & \
+               (df_curvas_filtrado['ValidadeFim'].dt.month >= mes_min_user)
+    
+    df_curvas_filtrado = df_curvas_filtrado[mask_mes]
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Botões para limpar filtros e exibir resultado
@@ -43,11 +84,11 @@ c_btn1.button("Limpar Filtros",             # legenda do botão
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #- Se o DF estiver vazio, paramos a execução aqui para não dar erro nas métricas abaixo
-if df_filtrado.empty:
+if df_med_filtrado.empty:
     st.stop()
 
 #- Aplicação do filtro no DataFrame da página usando o que a função retornou
-exibe_medicoes = df_filtrado.copy()
+exibe_medicoes = df_med_filtrado.copy()
 
 #- Renomea a coluna
 exibe_medicoes.rename(columns={
@@ -134,9 +175,6 @@ df_estilizado = df_para_estilizar.style.format({
     'Prof': "{:.3f}",
     'Qcalc': "{:.3f}",
     'Desvio': "{:.2f}",
-    'a': "{:.4f}",
-    'h0': "{:.2f}",
-    'n': "{:.3f}",
     'Ano': "{:.0f}",
     'Mes': "{:.0f}",
 }, decimal=',', thousands='.') \
@@ -151,21 +189,69 @@ st.dataframe(
     hide_index=True,
     width="stretch",
     column_config={
-        "Data": st.column_config.DatetimeColumn("Data", format="DD/MM/YYYY"),
+        # Colunas com TOOLTIPS (help)
+        "Qcalc": st.column_config.NumberColumn(
+            "Q Calc (m³/s)", 
+            help="Vazão calculada através da equação da curva chave vigente para a cota lida."
+        ),
+        "Desvio": st.column_config.NumberColumn(
+            "Desvio (%)", 
+            help="Diferença percentual entre a vazão medida em campo e a vazão calculada (Qcalc)."
+        ),
+        "Curva": st.column_config.NumberColumn(
+            "Nº Curva", 
+            format="%d", 
+            help="Numeração da curva chave associada a esta estação."
+        ),
+
+        # Datas formatadas (O Styler não mexe nestas se não estiverem no .format)
+        "Data": st.column_config.DatetimeColumn(
+            "Data", 
+            format="DD/MM/YYYY", 
+            help="Data da medição"
+            ),
+        "ValidadeInicio": st.column_config.DatetimeColumn(
+            "Validade Início", 
+            format="DD/MM/YYYY",
+            help="Início da validade da curva"
+            ),
+        "ValidadeFim": st.column_config.DatetimeColumn(
+            "Validade Fim", 
+            format="DD/MM/YYYY",
+            help="Fim da validade da curva"
+            ),
+
+        # Outras colunas apenas com nome e ajuda
         "Codigo": st.column_config.NumberColumn("Código", format="%d"),
-        "ValidadeInicio": st.column_config.DatetimeColumn("Validade Início", format="DD/MM/YYYY"),
-        "ValidadeFim": st.column_config.DatetimeColumn("Validade Fim", format="DD/MM/YYYY"),
-        "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d"),
-        "Vazao": "Vazão (m³/s)",
-        "NumMed": st.column_config.NumberColumn("NumMed", format="%d"),
-        "Curva": st.column_config.NumberColumn("Curva", format="%d"),
-        "Lim_inf": st.column_config.NumberColumn("Limite Inf. (cm)", format="%d"),
-        "Lim_sup": st.column_config.NumberColumn("Limite Sup. (cm)", format="%d"),
+        "Cota": st.column_config.NumberColumn(
+            "Cota (cm)", 
+            help="Nível d'água observado no momento da medição."
+            ),
+        "Vazao": st.column_config.NumberColumn(
+            "Vazão (m³/s)", 
+            help="Vazão medida em campo."
+            ),
+        "NumMed": st.column_config.NumberColumn(
+            "Nº Medição", 
+            format="%d",
+            help="Número da medição de descarga"
+            ),
+        "Lim_inf": st.column_config.NumberColumn(
+            "Limite Inf. (cm)", 
+            format="%d", 
+            help="Limite inferior da curva chave"
+            ),
+        "Lim_sup": st.column_config.NumberColumn(
+            "Limite Sup. (cm)", 
+            format="%d", 
+            help="Limite superior da curva chave"
+            ),
         "medidorvazao": st.column_config.NumberColumn("Medidor Vazão", format="%d"),
         "Ano": st.column_config.NumberColumn("Ano", format="%d"),
         "Mes": st.column_config.NumberColumn("Mês", format="%d"),
         # Notas: Quando usamos .style.format, o 'format' do column_config 
         # pode ser omitido para as colunas numéricas estilizadas.
+
     }
 )
 
@@ -173,91 +259,104 @@ st.dataframe(
 if aviso_limite:
     st.info(aviso_limite)
 
-#- Descrição do DataFrame exibido
-st.markdown("""
-            **Descrição das Colunas**  
-            **'Qcalc':** Vazão calculada pela curva chave.  
-            **'Desvio':** Diferença entre a Vazão medida e a Vazão calculada pela curva chave (Qcalc).  
-            **'Curva':** Número da curva chave da estação correspondente.
-            """)
-
 # < ------------------------------------------------------------------------------------------------------------------------------
+# --- LOGICA DE TRAVA (APENAS UMA ESTAÇÃO) ---
+if not estacoes_sel:
+    st.warning("⚠️ Selecione **uma Estação** no filtro acima para visualizar o gráfico.")
+    st.stop()
+
+if len(estacoes_sel) > 1:
+    st.error(f"❌ Você selecionou {len(estacoes_sel)} estações. Por favor, selecione **apenas uma** para analisar a Curva-Chave.")
+    # st.info("💡 O gráfico de Curva-Chave requer uma análise individual por seção do rio.")
+    st.stop()
+
 # < ------------------------------------------------------------------------------------------------------------------------------
 # $ Lógica do Gráfico
 
-# Pegamos as estações que estão selecionadas no filtro global
-estacoes_selecionadas = st.session_state.filtro_cod
-
-if not estacoes_selecionadas:
-    st.warning("⚠️ Selecione **uma Estação** no filtro acima para visualizar o gráfico de dispersão.")
-    st.stop()
-
-if len(estacoes_selecionadas) > 1:
-    st.info("💡 Sugestão: Selecione apenas **uma estação** para uma análise mais clara da Curva-Chave.")
-    # Se quiser permitir múltiplas, o código abaixo funciona, mas os pontos ficarão misturados.
-
-# Filtragem dos dados (df_filtrado já contém os filtros de UR, Ano e Mês)
-df_plot = df_filtrado.copy()
-
-if df_plot.empty:
-    # A mensagem de aviso já é disparada pela função menu_filtros_multi
-    st.stop()
-else:
-    # --- PREPARAÇÃO DOS DADOS ---
-    # Criamos um dicionário de nomes para o título (mapa_nomes)
-    mapa_nomes = df_plot.drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
+# --- 3. GERAÇÃO DA LINHA DA CURVA ---
+def gerar_pontos_curva(df_curvas):
+    pontos = []
+    # Ordenar por curva e tramo para a linha não "saltar" no gráfico
+    df_curvas = df_curvas.sort_values(['Curva', 'TramoCotaMin'])
     
-    # --- CRIAÇÃO DO SCATTER PLOT ---
-    fig = go.Figure()
+    for _, tramo in df_curvas.iterrows():
+        # Gerar 100 pontos entre o mínimo e máximo do tramo
+        h_range = np.linspace(tramo['TramoCotaMin'], tramo['TramoCotaMax'], 100)
+        
+        # Fórmula: Q = A * (H/100 - H0)^N
+        # np.maximum evita erros matemáticos se H/100 < H0
+        q_calc = tramo['CoefA'] * ((np.maximum(h_range/100 - tramo['CoefH0'], 0.001)) ** tramo['CoefN'])
+        
+        df_t = pd.DataFrame({'Cota': h_range, 'Vazao': q_calc})
+        df_t['Curva'] = tramo['Curva']
+        pontos.append(df_t)
+    
+    return pd.concat(pontos) if pontos else pd.DataFrame()
 
-    # Adicionamos as medições
+# --- 4. CONSTRUÇÃO DO PLOTLY ---
+fig = go.Figure()
+
+# Medições
+if not df_med_filtrado.empty:
     fig.add_trace(go.Scatter(
-        x=df_plot['Vazao'],
-        y=df_plot['Cota'],
+        x=df_med_filtrado['Vazao'],
+        y=df_med_filtrado['Cota'],
         mode='markers',
         name='Medições',
         marker=dict(
-            size=10,
-            color=df_plot['Desvio'].abs(), # Cor varia conforme o desvio
-            colorscale='Viridis',
-            showscale=True,
-            colorbar=dict(title="Desvio %"),
-            opacity=0.8,
-            line=dict(width=1, color='DarkSlateGrey')
+            size=10, color=df_med_filtrado['Desvio'].abs(),
+            colorscale='Viridis', showscale=True,
+            colorbar=dict(title="Desvio %", x=1.1)
         ),
-        text=df_plot['Data'], 
-        customdata=df_plot['Desvio'],
-        hovertemplate="<b>Data:</b> %{text}<br><b>Vazão:</b> %{x:.2f} m³/s<br><b>Cota:</b> %{y:.0f} cm<br><b>Desvio:</b> %{customdata:.1f}%<extra></extra>"
+        text=df_med_filtrado['Data'],
+        customdata=df_med_filtrado['Desvio'],
+        hovertemplate="<b>Data:</b> %{text}<br><b>Vazão:</b> %{x:.2f}<br><b>Cota:</b> %{y:.0f}<br><b>Desvio:</b> %{customdata:.1f}%<extra></extra>"
     ))
 
-    # Ajustes de Layout
-    titulo_estacao = f"Relação Cota x Vazão - Estação: {estacoes_selecionadas[0]}"
-    if len(estacoes_selecionadas) == 1:
-        titulo_estacao += f" ({mapa_nomes.get(estacoes_selecionadas[0])})"
+# Linhas das Curvas
+if not df_curvas_filtrado.empty:
+    df_linhas = gerar_pontos_curva(df_curvas_filtrado)
+    for num in df_linhas['Curva'].unique():
+        df_c = df_linhas[df_linhas['Curva'] == num]
+        fig.add_trace(go.Scatter(
+            x=df_c['Vazao'], y=df_c['Cota'],
+            mode='lines', name=f'Curva {num}',
+            line=dict(width=3)
+        ))
 
-    fig.update_layout(
-        title={'text': titulo_estacao, 'x': 0.5},
-        xaxis_title="Vazão (m³/s)",
-        yaxis_title="Cota (cm)",
-        plot_bgcolor='rgb(245, 245, 245)',
-        paper_bgcolor='white',
-        height=700,
-        hovermode="closest"
+# Estilização
+mapa_nomes = st.session_state['medicoes'].drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
+nome_estacao = mapa_nomes.get(estacoes_sel[0], "Não encontrada")
+
+fig.update_layout(
+    title={
+        'text': f"Medições de descarga x Curva chave<br><sup>Estação: {estacoes_sel[0]} - {nome_estacao}</sup>",
+        'x': 0.5,           # Posiciona o título no meio da largura do gráfico
+        'xanchor': 'center', # Garante que o ponto de ancoragem seja o centro do texto
+        'yanchor': 'top'    # Garante o alinhamento vertical no topo
+    },
+    xaxis_title="Vazão (m³/s)", 
+    yaxis_title="Cota (cm)",
+    height=700, 
+    template="plotly_white",
+    hovermode="closest"
+)
+
+st.plotly_chart(fig, width='stretch')
+
+# Tabela de conferência com Tooltips (ajuda ao passar o mouse)
+with st.expander("Parâmetros das Curvas (Vigência filtrada)"):
+    st.dataframe(
+        df_curvas_filtrado[['Curva', 'ValidadeInicio', 'ValidadeFim', 'Tramo', 'CoefA', 'CoefH0', 'CoefN']], 
+        hide_index=True,
+        column_config={
+            "Curva": st.column_config.TextColumn("Curva", help="Número de identificação da curva chave."),
+            "ValidadeInicio": st.column_config.DateColumn("Início", help="Data de início da vigência desta curva."),
+            "ValidadeFim": st.column_config.DateColumn("Fim", help="Data de término da vigência desta curva."),
+            "Tramo": st.column_config.NumberColumn("Tramo", help="Segmento da curva (ex: 1º tramo para vazões baixas, 2º para médias)."),
+            "CoefA": st.column_config.NumberColumn("Cof. A", help="Coeficiente de escala da equação Q = A * (H - H0)^N."),
+            "CoefH0": st.column_config.NumberColumn("Cof. H0", help="Cota de vazão nula (em metros)."),
+            "CoefN": st.column_config.NumberColumn("Cof. N", help="Expoente da equação (declividade da curva no papel logarítmico)."),
+        }
     )
-
-    fig.update_xaxes(showgrid=True, gridcolor='lightgray', zeroline=True, zerolinecolor='gray')
-    fig.update_yaxes(showgrid=True, gridcolor='lightgray', zeroline=True, zerolinecolor='gray')
-
-    st.plotly_chart(fig, width='stretch')
-
-    # Expander para ver os dados brutos filtrados
-    # with st.expander("Ver dados brutos desta seleção"):
-    #     st.dataframe(df_plot[['Data', 'Codigo', 'Cota', 'Vazao', 'Desvio']], 
-    #                  hide_index=True, width='stretch')
-
-# < ------------------------------------------------------------------------------------------------------------------------------
-# st.markdown("""
-# ---
-# **Dica de Análise:** Observe a dispersão dos pontos. Pontos muito fora da tendência (outliers) podem indicar erros de medição ou mudanças na seção do rio (extravasamento ou erosão).
-# """)
 
