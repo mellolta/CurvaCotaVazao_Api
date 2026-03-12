@@ -132,8 +132,8 @@ if not exibe_medicoes.empty:
 
     # Exibição dos Metric Cards
     m1.metric("Total de Registros", f"{len(exibe_medicoes)}")
-    m2.metric("Desvio Médio", f"{desvio_medio:.2f}%")
-    m3.metric("Maior Desvio Encontrado", f"{maior_erro:.2f}%")
+    m2.metric("Desvio Médio", f"{desvio_medio:.2f}")
+    m3.metric("Maior Desvio Encontrado", f"{maior_erro:.2f}")
     m4.metric("Alertas (> 20%)", f"{qtd_critica} registros")
     
     st.divider() # Linha visual para separar das tabelas
@@ -166,17 +166,12 @@ def colorir_desvio(valor):
 #- Formatação Brasileira via Pandas Styler e o estilo condicional
 #< Isso mantém os dados como números (para ordenar), mas exibe com vírgula e ponto
 df_estilizado = df_para_estilizar.style.format({
-    'Codigo': "{:.0f}",
-    'NumMed': "{:.0f}",
-    'Cota': "{:.0f}",
     'Vazao': "{:.3f}",
     'AreaMolh': "{:.3f}",
     'Largura': "{:.3f}",
     'Prof': "{:.3f}",
     'Qcalc': "{:.3f}",
     'Desvio': "{:.2f}",
-    'Ano': "{:.0f}",
-    'Mes': "{:.0f}",
 }, decimal=',', thousands='.') \
 .map(colorir_desvio, subset=['Desvio']) # <--- Aplica a cor apenas na coluna Desvio
 
@@ -189,68 +184,63 @@ st.dataframe(
     hide_index=True,
     width="stretch",
     column_config={
-        # Colunas com TOOLTIPS (help)
-        "Qcalc": st.column_config.NumberColumn(
-            "Q Calc (m³/s)", 
-            help="Vazão calculada através da equação da curva chave vigente para a cota lida."
-        ),
-        "Desvio": st.column_config.NumberColumn(
-            "Desvio (%)", 
-            help="Diferença percentual entre a vazão medida em campo e a vazão calculada (Qcalc)."
-        ),
-        "Curva": st.column_config.NumberColumn(
-            "Nº Curva", 
-            format="%d", 
-            help="Numeração da curva chave associada a esta estação."
-        ),
-
-        # Datas formatadas (O Styler não mexe nestas se não estiverem no .format)
+        "UR": st.column_config.Column("UR", help="Unidade Regional"),
+        "Codigo": st.column_config.NumberColumn("Código", format="%d", 
+                                                help="Código da estação."),
+        "Nome": st.column_config.Column("Nome", 
+                                        help="Nome da estação"),
         "Data": st.column_config.DatetimeColumn(
-            "Data", 
-            format="DD/MM/YYYY", 
-            help="Data da medição"
+            "Data", format="DD/MM/YYYY", 
+            help="Data da medição"),
+        "NumMed": st.column_config.NumberColumn(
+            "Nº Medição", format="%d",
+            help="Número da medição de descarga"
             ),
-        "ValidadeInicio": st.column_config.DatetimeColumn(
-            "Validade Início", 
-            format="DD/MM/YYYY",
-            help="Início da validade da curva"
-            ),
-        "ValidadeFim": st.column_config.DatetimeColumn(
-            "Validade Fim", 
-            format="DD/MM/YYYY",
-            help="Fim da validade da curva"
-            ),
-
-        # Outras colunas apenas com nome e ajuda
-        "Codigo": st.column_config.NumberColumn("Código", format="%d"),
         "Cota": st.column_config.NumberColumn(
-            "Cota (cm)", 
+            "Cota (cm)", format="%d",
             help="Nível d'água observado no momento da medição."
             ),
         "Vazao": st.column_config.NumberColumn(
             "Vazão (m³/s)", 
             help="Vazão medida em campo."
             ),
-        "NumMed": st.column_config.NumberColumn(
-            "Nº Medição", 
-            format="%d",
-            help="Número da medição de descarga"
+        "Qcalc": st.column_config.NumberColumn(
+            "QCalc (m³/s)", 
+            help="Vazão calculada através da equação da curva chave vigente para a cota lida."
+        ),
+        "Desvio": st.column_config.NumberColumn("Desvio (m³/s)", 
+            help="Diferença entre vazão calculada pela curva chave (Qcalc) e a vazão que está no banco SQL." 
             ),
+        "Curva": st.column_config.NumberColumn(
+            "Nº Curva", format="%d", 
+            help="Numeração da curva chave associada a esta estação."
+        ),
+        "ValidadeInicio": st.column_config.DatetimeColumn(
+            "Validade Início", format="DD/MM/YYYY",
+            help="Início da validade da curva chave"
+            ),
+        "ValidadeFim": st.column_config.DatetimeColumn(
+            "Validade Fim", format="DD/MM/YYYY",
+            help="Fim da validade da curva chave"
+            ),
+
         "Lim_inf": st.column_config.NumberColumn(
-            "Limite Inf. (cm)", 
-            format="%d", 
+            "Limite Inf. (cm)", format="%d", 
             help="Limite inferior da curva chave"
             ),
         "Lim_sup": st.column_config.NumberColumn(
-            "Limite Sup. (cm)", 
-            format="%d", 
+            "Limite Sup. (cm)", format="%d", 
             help="Limite superior da curva chave"
             ),
-        "medidorvazao": st.column_config.NumberColumn("Medidor Vazão", format="%d"),
-        "Ano": st.column_config.NumberColumn("Ano", format="%d"),
-        "Mes": st.column_config.NumberColumn("Mês", format="%d"),
+        "medidorvazao": st.column_config.NumberColumn("Medidor Vazão", format="%d", 
+            help="Equipamento usado para a medição de descarga"),
+        "Ano": st.column_config.NumberColumn("Ano", format="%d", 
+                                             help="Ano da leitura"),
+        "Mes": st.column_config.NumberColumn("Mês", format="%d", 
+                                             help="Mês da leitura"),
         # Notas: Quando usamos .style.format, o 'format' do column_config 
         # pode ser omitido para as colunas numéricas estilizadas.
+        # Datas formatadas (O Styler não mexe nestas se não estiverem no .format)
 
     }
 )

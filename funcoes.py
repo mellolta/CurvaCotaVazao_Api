@@ -30,7 +30,10 @@ def configuracoes_iniciais():
     # - para usar a largura total da página
     st.set_page_config(layout="wide")
 
-    #- logo CPRM no canto superior direito
+    #- 1. Logo (Ajustada para o menu)
+    # st.logo("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png")
+    
+    #- logo CPRM no canto superior direito da página
     st.image("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png", width=200)
 
     #- Chama a função (se já rodou, ele pega do cache instantaneamente)
@@ -38,8 +41,11 @@ def configuracoes_iniciais():
     #- Garante que os dados existam antes da página renderizar
     verificar_e_carregar_dados()
 
+    #- Botão para forçar o recarregamento da base de dados
+    # menu_reset_cache()
+
 #< ------------------------------------------------------------------------------------------------------------------------------
-@st.cache_data(ttl=3600)
+@st.cache_data(ttl=3600) # Expira em 3600 segundos (1 hora)
 def obter_dados_base():
     """
     Esta função carrega os dados e os mantém em cache.
@@ -58,30 +64,66 @@ def obter_dados_base():
     for chave, file_id in mapeamento_arquivos.items():
         try:
             df = carregaCSV_drive(file_id)
+            # df = carregaCSV_local(file_id) 
+
             if df is not None:
-                # Padronizações comuns
+                #- 1. Padronização de Colunas
                 if 'EstacaoCodigo' in df.columns:
                     df.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
                 
-                # Conversão de datas
+                #- 2. Conversão de datas
                 for col in ['Data', 'ValidadeInicio', 'ValidadeFim']:
                     if col in df.columns:
-                        df[col] = pd.to_datetime(df[col], errors='coerce')
+                        df[col] = pd.to_datetime(df[col], format='%Y-%m-%d', errors='coerce')
                 
-                datasets[chave] = df
+            #- 3. Tratamento de Status
+            if 'Status' in df.columns:
+                mapa_status = {
+                    0: "Em branco",
+                    1: "1: Validado",
+                    2: "2: * (Estimado)",
+                    3: "3: ? (Duvidoso)",
+                    4: "4: # (Régua seca)",
+                    5: "5: ! (Régua coberta)",
+                    6: "6: @ (Rio seco)",
+                    7: "7: / (Rio cortado)"
+                    }
+                #- Converte para numérico (caso venha como string ou float do CSV)
+                df['Status'] = pd.to_numeric(df['Status'], errors='coerce')
+                
+                #- Mapeia os valores e preenche o que sobrar (nulos) com "Em branco"
+                df['Status'] = df['Status'].map(mapa_status).fillna("Em branco")
+
+            datasets[chave] = df
+
         except Exception as e:
             st.error(f"Erro ao carregar {chave}: {e}")
+
     return datasets
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 def verificar_e_carregar_dados():
     """
-    Garante que os dados estejam no session_state em todas as execuções.
+    Garante que TODAS as tabelas essenciais estejam no session_state.
+    Se faltar qualquer uma, recarrega o pacote completo.
     """
-    # Se uma chave essencial não estiver no estado, recarrega tudo
-    if 'medicoes' not in st.session_state or st.session_state['medicoes'] is None:
-        with st.spinner("Carregando dados do Drive..."):
+    # Lista de chaves que DEVEM existir no session_state
+    chaves_essenciais = [
+        'balanceamento', 'cota', 'medicoes', 
+        'outliers', 'vazao', 'curvas'
+    ]
+    
+    # Verifica se alguma chave está faltando ou está vazia (None)
+    precisa_carregar = any(
+        chave not in st.session_state or st.session_state[chave] is None 
+        for chave in chaves_essenciais
+    )
+
+    if precisa_carregar:
+        #- O spinner mostra uma animação e a mensagem enquanto a função roda
+        with st.spinner("Carregando base de dados..."):
             dados = obter_dados_base()
+            # O dicionário 'dados' contém as chaves do mapeamento_arquivos
             for chave, df in dados.items():
                 st.session_state[chave] = df
 
@@ -241,31 +283,25 @@ def menu_filtros_multi(df_input):
     Cria menu superior global que preserva seleção em todas as páginas.
     Trata automaticamente a lógica de Ano/Mês para Data ou ValidadeInicio/Fim.
     """
-    # 1. INICIALIZAÇÃO DE ESTADO PERSISTENTE
-    # chaves_globais = ['filtro_ur', 'filtro_cod', 'filtro_ano', 'filtro_mes', 
-    #                 'w_ur', 'w_cod', 'w_ano', 'w_mes']
-
-    # for k in chaves_globais:
-    #     if k not in st.session_state:
-    #         st.session_state[k] = []
     
     #- 1. INICIALIZAÇÃO DE ESTADOS GLOBAIS (Se não existirem)
-    chaves_globais = ['filtro_ur', 'filtro_cod', 'filtro_ano', 'filtro_mes']
-    for k in chaves_globais:
-        if k not in st.session_state:
-            st.session_state[k] = []
+    for sufixo in ['ur', 'cod', 'ano', 'mes']:
+        global_key = f'filtro_{sufixo}'
+        widget_key = f'w_{sufixo}'
         
-        # Sincronização: Se o widget (w_...) foi resetado pela troca de página, 
-        # mas temos valor no filtro global, repopulamos o widget.
-        chave_w = 'w_' + k.split('_')[1]
-        if chave_w not in st.session_state:
-            st.session_state[chave_w] = st.session_state[k]
+        # Se não existe o global (primeira vez), cria vazio
+        if global_key not in st.session_state:
+            st.session_state[global_key] = []
+            
+        # FORÇA: O widget deve SEMPRE carregar o que está no global.
+        # Isso evita que o 'reset' do Streamlit na mudança de página limpe o dado.
+        st.session_state[widget_key] = st.session_state[global_key]
 
     df = df_input.copy()
         
-    #- Padronização de nomes de colunas
-    if 'EstacaoCodigo' in df.columns:
-        df.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
+    #- Padronização de nomes de colunas (já é renomeado no carregamento)
+    # if 'EstacaoCodigo' in df.columns:
+    #     df.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
 
     mapa_nomes = df.drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
 
@@ -273,7 +309,7 @@ def menu_filtros_multi(df_input):
     def obter_opcoes(coluna_alvo):
         temp = df.copy()
         
-        # Lógica para gerar opções de Ano/Mês quando as colunas não existem (Balanceamento)
+        # Lógica para gerar opções de Ano/Mês quando as colunas não existem (Balanceamento e Curvas)
         if coluna_alvo in ['Ano', 'Mes'] and 'Data' not in temp.columns and 'ValidadeInicio' in temp.columns:
             if coluna_alvo == 'Ano':
                 # Criamos um set para armazenar todos os anos únicos dentro de cada intervalo
@@ -304,10 +340,6 @@ def menu_filtros_multi(df_input):
             return sorted(temp[coluna_alvo].unique().tolist())
         return []
 
-    # Auxiliar para evitar erro de StreamlitAPIException (default fora das options)
-    # def validar_default(selecionados, opcoes_disponiveis):
-    #     return [item for item in selecionados if item in opcoes_disponiveis]
-
     # --- RENDERIZAÇÃO DA INTERFACE ---
     # Função auxiliar para o callback (resolve o problema do clique duplo)
     def atualizar_filtros():
@@ -323,7 +355,6 @@ def menu_filtros_multi(df_input):
         st.multiselect(
             'Unidade Regional', options=ops, 
             key='w_ur', # Chave do widget
-            # default=validar_default(st.session_state.filtro_ur, ops),
             on_change=atualizar_filtros
         )
 
@@ -332,7 +363,6 @@ def menu_filtros_multi(df_input):
         st.multiselect(
             'Estação', options=ops, 
             key='w_cod',
-            # default=validar_default(st.session_state.filtro_cod, ops),
             format_func=lambda c: f"{c} - {mapa_nomes.get(c, 'N/A')}",
             on_change=atualizar_filtros
         )
@@ -342,7 +372,6 @@ def menu_filtros_multi(df_input):
         st.multiselect(
             'Ano', options=ops, 
             key='w_ano',
-            # default=validar_default(st.session_state.filtro_ano, ops),
             on_change=atualizar_filtros
         )
 
@@ -351,7 +380,6 @@ def menu_filtros_multi(df_input):
         st.multiselect(
             'Mês', options=ops, 
             key='w_mes',
-            # default=validar_default(st.session_state.filtro_mes, ops),
             on_change=atualizar_filtros
         )
     
@@ -422,10 +450,32 @@ def limpar_filtros():
             st.session_state[k] = []
 
 #< ------------------------------------------------------------------------------------------------------------------------------
-#< ------------------------------------------------------------------------------------------------------------------------------
-#< ------------------------------------------------------------------------------------------------------------------------------
-#< ------------------------------------------------------------------------------------------------------------------------------
+def menu_reset_cache():
+    """
+    Cria um botão no menu lateral para limpar o cache e recarregar os dados.
+    """
+    with st.sidebar:
+        st.subheader("Manutenção")
+        if st.button("🔄 Recarregar Base de Dados"):
+            # 1. Limpa o cache das funções decoradas com @st.cache_data
+            # st.cache_data.clear()
+            obter_dados_base.clear()
+            
+            # 2. Limpa as variáveis de dados no session_state para forçar a recarga
+            chaves_para_limpar = [
+                'balanceamento', 'cota', 'medicoes', 
+                'outliers', 'vazao', 'curvas'
+            ]
+            for chave in chaves_para_limpar:
+                if chave in st.session_state:
+                    del st.session_state[chave]
+            
+            # 3. Notifica o usuário e reinicia o app
+            st.success("Cache limpo! Recarregando dados...")
+            st.rerun()
 
-
+#< ------------------------------------------------------------------------------------------------------------------------------
+#< ------------------------------------------------------------------------------------------------------------------------------
+#< ------------------------------------------------------------------------------------------------------------------------------
 
 

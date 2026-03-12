@@ -78,8 +78,6 @@ def colorir_desvio(valor):
 #- Formatação Brasileira via Pandas Styler e o estilo condicional
 #< Isso mantém os dados como números (para ordenar), mas exibe com vírgula e ponto
 df_estilizado = df_para_estilizar.style.format({
-    # Exibe a coluna 'Data' do DataFrame para o formato de string 'dd/mm/aaaa'.
-    'Data': lambda x: x.strftime('%d/%m/%Y') if pd.notnull(x) else "",
     'Vazao': "{:.1f}",
     'Vazao_Anterior': "{:.1f}",
     'Diferença_vazao': "{:.1f}",
@@ -101,19 +99,35 @@ st.dataframe(
     hide_index=True,
     width="stretch",
     column_config={
-        "Codigo": st.column_config.NumberColumn("Código", format="%d"),
-        # "Status": st.column_config.NumberColumn("Status", format="%d"),
-        "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d"),
-        "Cota_Anterior": st.column_config.NumberColumn("Cota Anterior (cm)", format="%d"),
-        "Vazao": "Vazão (m³/s)",
-        "Status": "Status Cota",
-        "Vazao_Anterior": "Vazão Anterior (m³/s)",
-        "Diferença_vazao": "Diferença Vazao (m³/s)",
-        "DifPer_vazao": "Diferença Vazao (%)",
-        "DifPer_cota": "Diferença Cota (%)",
-        "Diferença_cota": st.column_config.NumberColumn("Diferença Cota (cm)", format="%d"),
-        "Ano": st.column_config.NumberColumn("Ano", format="%d"),
-        "Mes": st.column_config.NumberColumn("Mês", format="%d"),
+        "UR": st.column_config.Column("UR", 
+                                      help="Unidade Regional"),
+        "Codigo": st.column_config.NumberColumn("Código", format="%d", 
+                                                help="Código da estação."),
+        "Nome": st.column_config.Column("Nome", help="Nome da estação"),
+        "Data": st.column_config.DatetimeColumn("Data", format="DD/MM/YYYY", 
+                                                help="Data da leitura."),
+        "Status": st.column_config.Column("Status Cota", 
+                                          help="Classificação da cota do dia."),
+        "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d", 
+                                              help="Cota lida."),
+        "Cota_Anterior": st.column_config.NumberColumn("Cota Anterior (cm)", format="%d", 
+            help="Cota lida do dia anterior"),
+        "Vazao": st.column_config.NumberColumn("Vazão (m³/s)", 
+            help="Vazão presente no banco SQL."),
+        "Vazao_Anterior": st.column_config.NumberColumn("Vazão Anterior (m³/s)", 
+            help="Vazão do dia anterior presente no banco SQL."),
+        "Diferença_vazao": st.column_config.NumberColumn("Diferença Vazao (m³/s)", 
+            help="Diferença de vazão entre o dia analisado e o dia anterior"), 
+        "DifPer_vazao": st.column_config.NumberColumn("Diferença Vazao (%)", 
+            help="Diferença percentual entre a vazão do dia analisado e a do dia anterior"), 
+        "DifPer_cota": st.column_config.NumberColumn("Diferença Cota (%)", 
+            help="Diferença percentual entre a cota do dia analisado e a do dia anterior"), 
+        "Diferença_cota": st.column_config.NumberColumn("Diferença Cota (cm)", format="%d", 
+            help="Diferença de cota entre o dia analisado e o dia anterior"),
+        "Ano": st.column_config.NumberColumn("Ano", format="%d", 
+                                             help="Ano da leitura"),
+        "Mes": st.column_config.NumberColumn("Mês", format="%d", 
+                                             help="Mês da leitura"),
         # Notas: Quando usamos .style.format, o 'format' do column_config 
         # pode ser omitido para as colunas numéricas estilizadas.
     }
@@ -124,12 +138,8 @@ if aviso_limite:
     st.info(aviso_limite)
 
 #- Descrição do DataFrame exibido
-st.markdown("""
-            **Descrição das Colunas**  
-            **'Status Cota':** Classificação da cota do dia.  
-            **'Diferença Vazão (%)':** Diferença percentual entre a vazão do dia e a vazão do dia anterior.  
-            **'Diferença Cota (%)':** Diferença percentual entre a cota do dia e a cota do dia anterior.  
-            """)
+st.markdown(":small[💡 Colocar o ponteiro do mouse sobre o cabeçalho para obter a descrição das colunas]")
+
 # < ------------------------------------------------------------------------------------------------------------------------------
 
 

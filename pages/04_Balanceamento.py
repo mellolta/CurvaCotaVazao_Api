@@ -111,8 +111,8 @@ def colorir_negativos(valor):
 #- Formatação Brasileira via Pandas Styler e o estilo condicional
 #< Isso mantém os dados como números (para ordenar), mas exibe com vírgula e ponto
 df_estilizado = df_para_estilizar.style.format({
-    'ValidadeInicio': lambda x: x.strftime('%d/%m/%Y') if pd.notnull(x) else "",
-    'ValidadeFim': lambda x: x.strftime('%d/%m/%Y') if pd.notnull(x) else "",
+    # 'ValidadeInicio': lambda x: x.strftime('%d/%m/%Y') if pd.notnull(x) else "",
+    # 'ValidadeFim': lambda x: x.strftime('%d/%m/%Y') if pd.notnull(x) else "",
     'Neg%': "{:.1f}",
     'Pos%': "{:.1f}",
     'DesvioMedio': "{:.1f}",
@@ -135,16 +135,32 @@ st.dataframe(
     hide_index=True, # Esconde o índice
     width="stretch", # Faz a tabela ocupar toda a largura disponível
     column_config={
-        "Codigo": st.column_config.NumberColumn("Código", format="%d"),
-        "Curva": st.column_config.NumberColumn("Curva", format="%d"),
-        "ValidadeInicio": "ValidadeInicio",
-        "ValidadeFim": "ValidadeFim",
-        "QtdPontos": st.column_config.NumberColumn("Qtd medições", format="%d"),
-        "Negativos": st.column_config.NumberColumn("Negativos", format="%d"),
-        "Positivos": st.column_config.NumberColumn("Positivos", format="%d"),
-        "DesvioMedio": "Desvio Médio (%)",
-        "Neg%": "Negativos (%)",
-        "Pos%": "Positivos (%)",
+        "UR": st.column_config.Column("UR", help="Unidade Regional"),
+        "Codigo": st.column_config.NumberColumn("Código", format="%d", 
+                                                help="Código da estação."),
+        "Nome": st.column_config.Column("Nome", help="Nome da estação"),
+        "Curva": st.column_config.NumberColumn("Curva", format="%d", 
+                                               help="Numeração da curva (em relação à quantidade total de curvas que existem para a estação.)"),
+        "ValidadeInicio": st.column_config.DatetimeColumn(
+            "Validade Início", format="DD/MM/YYYY",
+            help="Início da validade da curva chave"
+            ),
+        "ValidadeFim": st.column_config.DatetimeColumn(
+            "Validade Fim", format="DD/MM/YYYY",
+            help="Fim da validade da curva chave"
+            ),
+        "QtdPontos": st.column_config.NumberColumn("Qtd medições", format="%d", 
+            help="Quantidade de medições que estão dentro do período de validade da curva-chave"),
+        "Negativos": st.column_config.NumberColumn("Negativos", format="%d", 
+            help="Quantidade de medições com desvio negativo (vazão calculada pela curva-chave é maior que a vazão medida)"),
+        "Positivos": st.column_config.NumberColumn("Positivos", format="%d", 
+            help="Quantidade de medições com desvio positivo (vazão calculada pela curva-chave é menor que a vazão medida)"),
+        "DesvioMedio": st.column_config.NumberColumn("Desvio Médio (%)", 
+            help="Desvio médio percentual entre as medições"), 
+        "Neg%": st.column_config.NumberColumn("Negativos (%)", 
+            help="Percentual de medições localizadas abaixo da curva chave"), 
+        "Pos%": st.column_config.NumberColumn("Positivos (%)", 
+            help="Percentual de medições localizadas acima da curva chave"), 
         # Notas: Quando usamos .style.format, o 'format' do column_config 
         # pode ser omitido para as colunas numéricas estilizadas.
     }
@@ -155,14 +171,8 @@ if aviso_limite:
     st.info(aviso_limite)
 
 #- Descrição do DataFrame exibido
-st.markdown("""
-            **Descrição das Colunas**  
-            **'Curva':** Número da Curva (em relação à quantidade de curvas que existem para a estação)  
-            **'Qtd de medições':** Quantidade de medições que estão dentro do período de validade da curva-chave  
-            **'Negativos':** Quantidade de medições com desvio negativo (vazão calculada pela curva-chave é maior que a vazão medida)  
-            **'Positivos':** Quantidade de medições com desvio positivo (vazão calculada pela curva-chave é menor que a vazão medida)  
-            **'DesvioMedio (%)':** Desvio médio percentual entre as medições  
-            """)
+st.markdown(":small[💡 Colocar o ponteiro do mouse sobre o cabeçalho para obter a descrição das colunas]")
+
 # < ------------------------------------------------------------------------------------------------------------------------------
 
 

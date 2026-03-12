@@ -16,22 +16,8 @@ import funcoes as fc
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 #$ Configurações iniciais
-#- usa a largura total da página
-st.set_page_config(layout="wide")
+fc.configuracoes_iniciais()
 
-#- logo CPRM no canto superior direito
-st.image("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png", width=200)
-
-#- Inicializa as chaves no st.session_state se não existirem (evita KeyError)
-#< Isso garante que os valores persistam entre as re-execuções do script.
-if 'selected_UR' not in st.session_state:
-    st.session_state['selected_UR'] = None
-if 'selected_station' not in st.session_state:
-    st.session_state['selected_station'] = None
-if 'selected_ano' not in st.session_state:
-    st.session_state['selected_ano'] = None
-if 'selected_mes' not in st.session_state:
-    st.session_state['selected_mes'] = None
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 #$ Título e descrição da aplicação
@@ -61,12 +47,8 @@ st.markdown("""
             """)
 
 #< ------------------------------------------------------------------------------------------------------------------------------
-#$ Carregamento dos arquivos de dados
 
-#- O spinner mostra uma animação e a mensagem enquanto a função roda
-with st.spinner('Carregando bases de dados...'):
-    fc.carregar_dados_globais()
-
+fc.menu_reset_cache()
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 

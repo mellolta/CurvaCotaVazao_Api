@@ -76,16 +76,34 @@ st.dataframe(
     hide_index=True, # Esconde o índice
     width="stretch", # Faz a tabela ocupar toda a largura disponível
     column_config={
-        "Codigo": st.column_config.NumberColumn("Código", format="%d"),
-        "Data": st.column_config.DatetimeColumn("Data", format="DD/MM/YYYY"),
-        "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d"),
-        "Status": "Status Cota",
-        "ValidadeInicio": st.column_config.DatetimeColumn("Validade Início", format="DD/MM/YYYY"),
-        "ValidadeFim": st.column_config.DatetimeColumn("Validade Fim", format="DD/MM/YYYY"),
-        "Lim_inf": st.column_config.NumberColumn("Limite Inf. (cm)", format="%d"),
-        "Lim_sup": st.column_config.NumberColumn("Limite Sup. (cm)", format="%d"),
-        "Ano": st.column_config.NumberColumn("Ano", format="%d"),
-        "Mes": st.column_config.NumberColumn("Mês", format="%d"),
+        "UR": st.column_config.Column("UR", 
+                                      help="Unidade Regional"),
+        "Codigo": st.column_config.NumberColumn("Código", format="%d", 
+                                                help="Código da estação."),
+        "Nome": st.column_config.Column("Nome", help="Nome da estação"),
+        "Data": st.column_config.DatetimeColumn("Data", format="DD/MM/YYYY", 
+                                                help="Data da leitura."),
+        "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d", 
+                                              help="Cota lida."),
+        "Status": st.column_config.Column("Status Cota", 
+                                          help="Classificação da cota do dia."),
+        "ValidadeInicio": st.column_config.DatetimeColumn("Validade Início", 
+            format="DD/MM/YYYY", 
+            help="Início da validade da curva chave"),
+        "ValidadeFim": st.column_config.DatetimeColumn("Validade Fim", 
+            format="DD/MM/YYYY", 
+            help="Fim da validade da curva chave"),
+        "Lim_inf": st.column_config.NumberColumn("Limite Inf. (cm)", 
+            format="%d", 
+            help="Limite inferior da curva chave"),
+        "Lim_sup": st.column_config.NumberColumn(
+            "Limite Sup. (cm)", 
+            format="%d", 
+            help="Limite superior da curva chave"),
+        "Ano": st.column_config.NumberColumn("Ano", format="%d", 
+                                             help="Ano da leitura"),
+        "Mes": st.column_config.NumberColumn("Mês", format="%d", 
+                                             help="Mês da leitura"),
     }
 )
 
@@ -94,15 +112,6 @@ if aviso_limite:
     st.info(aviso_limite)
 
 #- Descrição do DataFrame exibido
-st.markdown("""
-            **Descrição das Colunas**  
-            **'Status Cota':** Classificação da cota do dia.  
-            **'Validade Início':** Data de início da validade da curva-chave associada à estação  
-            **'Validade Fim':** Data de fim da validade da curva-chave associada à estação  
-            **'Limite Inf. (cm)':** Limite inferior da curva-chave para a data correspondente  
-            **'Limite Sup. (cm)':** Limite superior da curva-chave para a data correspondente  
-            **'Ano':** Ano da leitura  
-            **'Mês':** Mês da leitura  
-            """)            
+st.markdown(":small[💡 Colocar o ponteiro do mouse sobre o cabeçalho para obter a descrição das colunas]")            
 # < ------------------------------------------------------------------------------------------------------------------------------
 

@@ -83,8 +83,8 @@ if not exibe_vazao.empty:
 
     # Exibição dos Metric Cards
     m1.metric("Total de Registros", f"{len(exibe_vazao)}")
-    m2.metric("Desvio Médio", f"{desvio_medio:.2f}%")
-    m3.metric("Maior Desvio Encontrado", f"{maior_erro:.2f}%")
+    m2.metric("Desvio Médio", f"{desvio_medio:.2f}")
+    m3.metric("Maior Desvio Encontrado", f"{maior_erro:.2f}")
     m4.metric("Alertas (> 10%)", f"{qtd_critica} registros")
     
     st.divider() # Linha visual para separar das tabelas
@@ -117,8 +117,6 @@ def colorir_desvio(valor):
 #- Formatação Brasileira via Pandas Styler e o estilo condicional
 #< Isso mantém os dados como números (para ordenar), mas exibe com vírgula e ponto
 df_estilizado = df_para_estilizar.style.format({
-    'Codigo': "{:.0f}",
-    'Cota': "{:.0f}",
     'Vazao': "{:.3f}",
     'Qcalc': "{:.3f}",
     'Desvio': "{:.2f}",
@@ -136,18 +134,39 @@ st.dataframe(
     hide_index=True,
     width="stretch",
     column_config={
-        "Codigo": st.column_config.NumberColumn("Código", format="%d"),
-        "Data": st.column_config.DatetimeColumn("Data", format="DD/MM/YYYY"),
-        "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d"),
-        "Vazao": "Vazão (m³/s)",
-        "Qcalc": "Qcalc (m³/s)",
-        "Status": "Status Cota",
-        "ValidadeInicio": st.column_config.DatetimeColumn("Validade Início", format="DD/MM/YYYY"),
-        "ValidadeFim": st.column_config.DatetimeColumn("Validade Fim", format="DD/MM/YYYY"),
-        "Lim_inf": st.column_config.NumberColumn("Limite Inf. (cm)", format="%d"),
-        "Lim_sup": st.column_config.NumberColumn("Limite Sup. (cm)", format="%d"),
-        "Ano": st.column_config.NumberColumn("Ano", format="%d"),
-        "Mes": st.column_config.NumberColumn("Mês", format="%d"),
+        "UR": st.column_config.Column("UR", help="Unidade Regional"),
+        "Codigo": st.column_config.NumberColumn("Código", format="%d", 
+                                                help="Código da estação."),
+        "Nome": st.column_config.Column("Nome", help="Nome da estação"),
+        "Data": st.column_config.DatetimeColumn("Data", format="DD/MM/YYYY", 
+                                                help="Data da leitura."),
+        "Cota": st.column_config.NumberColumn("Cota (cm)", format="%d", 
+                                              help="Cota lida."),
+        "Status": st.column_config.Column("Status Cota", 
+                                          help="Classificação da cota do dia."),
+        "Vazao": st.column_config.NumberColumn("Vazão (m³/s)", 
+            help="Vazão presente no banco SQL."),
+        "Qcalc": st.column_config.NumberColumn("QCalc (m³/s)", 
+            help="Vazão calculada através da equação da curva chave vigente para a cota lida."),
+        "Desvio": st.column_config.NumberColumn("Desvio (m³/s)", 
+            help="Diferença entre vazão calculada pela curva chave (Qcalc) e a vazão que está no banco SQL."),
+        "ValidadeInicio": st.column_config.DatetimeColumn("Validade Início", 
+            format="DD/MM/YYYY", 
+            help="Início da validade da curva chave"),
+        "ValidadeFim": st.column_config.DatetimeColumn("Validade Fim", 
+            format="DD/MM/YYYY", 
+            help="Fim da validade da curva chave"),
+        "Lim_inf": st.column_config.NumberColumn("Limite Inf. (cm)", 
+            format="%d", 
+            help="Limite inferior da curva chave"),
+        "Lim_sup": st.column_config.NumberColumn(
+            "Limite Sup. (cm)", 
+            format="%d", 
+            help="Limite superior da curva chave"),
+        "Ano": st.column_config.NumberColumn("Ano", format="%d", 
+                                             help="Ano da leitura"),
+        "Mes": st.column_config.NumberColumn("Mês", format="%d", 
+                                             help="Mês da leitura"),
         # Notas: Quando usamos .style.format, o 'format' do column_config 
         # pode ser omitido para as colunas numéricas estilizadas.
     }
@@ -158,10 +177,6 @@ if aviso_limite:
     st.info(aviso_limite)
 
 #- Descrição do DataFrame exibido
-st.markdown("""
-            **Descrição das Colunas**  
-            **'Desvio':** Diferença entre a vazão que está no banco SQL e a vazão calculada pela curva chave (Qcalc).  
-            **'Status Cota':** Classificação da cota do dia.
-            """)
+st.markdown(":small[💡 Colocar o ponteiro do mouse sobre o cabeçalho para obter a descrição das colunas]")
 
 # < ------------------------------------------------------------------------------------------------------------------------------
