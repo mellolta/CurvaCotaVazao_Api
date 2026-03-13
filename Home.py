@@ -18,7 +18,6 @@ import funcoes as fc
 #$ Configurações iniciais
 fc.configuracoes_iniciais()
 
-
 #< ------------------------------------------------------------------------------------------------------------------------------
 #$ Título e descrição da aplicação
 

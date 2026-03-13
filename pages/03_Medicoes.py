@@ -21,55 +21,24 @@ fc.configuracoes_iniciais()
 st.subheader("Medição e desvio em relação à curva-chave que está no banco SQL")
 
 #- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
-# if 'medicoes' not in st.session_state:
 if 'medicoes' not in st.session_state or 'curvas' not in st.session_state:
     st.error("Dados não carregados.")
     st.stop()
 
-#- DataFrame medicoes
+#- DataFrame medicoes e curvas
 medicoes = st.session_state['medicoes']
+curvas = st.session_state['curvas']
 
 # --- 1. FILTRO GLOBAL ---
 #- Chama a função que retorna o dataframe já filtrado
-df_med_filtrado = fc.menu_filtros_multi(medicoes)
+df_med_filtrado, df_curvas_filtrado = fc.menu_filtros_multi([medicoes, curvas])
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 # --- 2. APLICAÇÃO DOS FILTROS NA CURVA (ESTAÇÃO + TEMPO) ---
+ur_sel = st.session_state.filtro_ur
 estacoes_sel = st.session_state.filtro_cod
 anos_sel = st.session_state.filtro_ano
 meses_sel = st.session_state.filtro_mes
-
-df_curvas_filtrado = st.session_state['curvas'].copy()
-
-# Filtro por Estação
-if estacoes_sel:
-    df_curvas_filtrado = df_curvas_filtrado[df_curvas_filtrado['Codigo'].isin(estacoes_sel)]
-
-# --- CORREÇÃO DA LÓGICA DE INTERVALO (ANOS) ---
-if anos_sel:
-    # Pegamos o menor e o maior ano selecionados no multiselect
-    ano_min_user = min(anos_sel)
-    ano_max_user = max(anos_sel)
-    
-    # Lógica de Interseção:
-    # A curva é válida se começou ANTES ou DURANTE o último ano filtrado
-    # E se terminou DEPOIS ou DURANTE o primeiro ano filtrado
-    mask_ano = (df_curvas_filtrado['ValidadeInicio'].dt.year <= ano_max_user) & \
-               (df_curvas_filtrado['ValidadeFim'].dt.year >= ano_min_user)
-    
-    df_curvas_filtrado = df_curvas_filtrado[mask_ano]
-
-# --- CORREÇÃO DA LÓGICA DE INTERVALO (MESES) ---
-if meses_sel:
-    # Para meses, se quisermos ser rigorosos na interseção dentro do ano:
-    mes_min_user = min(meses_sel)
-    mes_max_user = max(meses_sel)
-    
-    # A curva deve ter algum mês de validade que se sobreponha ao range de meses selecionado
-    mask_mes = (df_curvas_filtrado['ValidadeInicio'].dt.month <= mes_max_user) & \
-               (df_curvas_filtrado['ValidadeFim'].dt.month >= mes_min_user)
-    
-    df_curvas_filtrado = df_curvas_filtrado[mask_mes]
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Botões para limpar filtros e exibir resultado
@@ -256,7 +225,7 @@ if not estacoes_sel:
     st.stop()
 
 if len(estacoes_sel) > 1:
-    st.error(f"❌ Você selecionou {len(estacoes_sel)} estações. Por favor, selecione **apenas uma** para analisar a Curva-Chave.")
+    st.error(f"❌ Você selecionou {len(estacoes_sel)} estações. Por favor, selecione **apenas uma** para analisar a Curva Chave.")
     # st.info("💡 O gráfico de Curva-Chave requer uma análise individual por seção do rio.")
     st.stop()
 
@@ -286,7 +255,7 @@ def gerar_pontos_curva(df_curvas):
 # --- 4. CONSTRUÇÃO DO PLOTLY ---
 fig = go.Figure()
 
-# Medições
+#- Medições
 if not df_med_filtrado.empty:
     fig.add_trace(go.Scatter(
         x=df_med_filtrado['Vazao'],
@@ -303,7 +272,7 @@ if not df_med_filtrado.empty:
         hovertemplate="<b>Data:</b> %{text}<br><b>Vazão:</b> %{x:.2f}<br><b>Cota:</b> %{y:.0f}<br><b>Desvio:</b> %{customdata:.1f}%<extra></extra>"
     ))
 
-# Linhas das Curvas
+#- Linhas das Curvas
 if not df_curvas_filtrado.empty:
     df_linhas = gerar_pontos_curva(df_curvas_filtrado)
     for num in df_linhas['Curva'].unique():
@@ -314,7 +283,7 @@ if not df_curvas_filtrado.empty:
             line=dict(width=3)
         ))
 
-# Estilização
+#- Estilização
 mapa_nomes = st.session_state['medicoes'].drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
 nome_estacao = mapa_nomes.get(estacoes_sel[0], "Não encontrada")
 

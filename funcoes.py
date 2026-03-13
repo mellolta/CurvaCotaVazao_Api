@@ -29,20 +29,12 @@ def configuracoes_iniciais():
 
     # - para usar a largura total da página
     st.set_page_config(layout="wide")
-
-    #- 1. Logo (Ajustada para o menu)
-    # st.logo("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png")
     
     #- logo CPRM no canto superior direito da página
     st.image("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png", width=200)
 
-    #- Chama a função (se já rodou, ele pega do cache instantaneamente)
-    # carregar_dados_globais()
     #- Garante que os dados existam antes da página renderizar
     verificar_e_carregar_dados()
-
-    #- Botão para forçar o recarregamento da base de dados
-    # menu_reset_cache()
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data(ttl=3600) # Expira em 3600 segundos (1 hora)
@@ -51,6 +43,7 @@ def obter_dados_base():
     Esta função carrega os dados e os mantém em cache.
     Ela retorna o dicionário de DataFrames.
     """
+    #- Mapeia as chaves aos IDs dos segredos (IDs dos arquivos no Google Drive)
     mapeamento_arquivos = {
         'balanceamento': st.secrets["id_balanceamento"],
         'cota': st.secrets["id_cota"],
@@ -59,6 +52,14 @@ def obter_dados_base():
         'vazao': st.secrets["id_vazao"],
         'curvas': st.secrets["id_curvas"]
     }
+    # mapeamento_arquivos = {
+    #     'balanceamento': 'balanceamento.csv',
+    #     'cota': 'cota.csv',
+    #     'medicoes': 'medicoes.csv',
+    #     'outliers': 'outliers.csv',
+    #     'vazao': 'vazao.csv'
+    #     'curvas': 'curvas.csv'
+    # }
     
     datasets = {}
     for chave, file_id in mapeamento_arquivos.items():
@@ -94,6 +95,7 @@ def obter_dados_base():
                 #- Mapeia os valores e preenche o que sobrar (nulos) com "Em branco"
                 df['Status'] = df['Status'].map(mapa_status).fillna("Em branco")
 
+            #- Grava no session_state
             datasets[chave] = df
 
         except Exception as e:
@@ -126,77 +128,6 @@ def verificar_e_carregar_dados():
             # O dicionário 'dados' contém as chaves do mapeamento_arquivos
             for chave, df in dados.items():
                 st.session_state[chave] = df
-
-#< ------------------------------------------------------------------------------------------------------------------------------
-# --- FUNÇÃO DE CARREGAMENTO COM CACHE ---
-@st.cache_data(ttl=3600) # Expira em 3600 segundos (1 hora)
-def carregar_dados_globais():
-    """
-    Carrega todos os arquivos necessários de uma vez só.
-    O uso do cache_data garante que o processamento pesado ocorra apenas uma vez.
-    """
-    #- 1. Mapeia as chaves aos IDs dos segredos (IDs dos arquivos no Google Drive)
-    mapeamento_arquivos = {
-        'balanceamento': st.secrets["id_balanceamento"],
-        'cota': st.secrets["id_cota"],
-        'medicoes': st.secrets["id_medicoes"],
-        'outliers': st.secrets["id_outliers"],
-        'vazao': st.secrets["id_vazao"],
-        'curvas': st.secrets["id_curvas"]
-    }
-    # mapeamento_arquivos = {
-    #     'balanceamento': 'balanceamento.csv',
-    #     'cota': 'cota.csv',
-    #     'medicoes': 'medicoes.csv',
-    #     'outliers': 'outliers.csv',
-    #     'vazao': 'vazao.csv'
-    #     'curvas': 'curvas.csv'
-    # }
-    
-    datasets = {}
-    
-    for chave, file_id in mapeamento_arquivos.items():
-        try:
-            df = carregaCSV_drive(file_id)
-            # df = carregaCSV_local(file_id) 
-            
-            # Padronização: Já faz o rename aqui para evitar erros nas páginas
-            if 'EstacaoCodigo' in df.columns:
-                df.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
-            
-            #- lista de colunas para converter para DateTime
-            colunas_data = ['Data', 'ValidadeInicio', 'ValidadeFim']
-            for col in colunas_data:
-                if col in df.columns:
-                    df[col] = pd.to_datetime(df[col], format='%Y-%m-%d', errors='coerce')
-            
-            #- status da cota
-            mapa_status = {
-                0: "Em branco",
-                1: "1: Validado",
-                2: "2: * (Estimado)",
-                3: "3: ? (Duvidoso)",
-                4: "4: # (Régua seca)",
-                5: "5: ! (Régua coberta)",
-                6: "6: @ (Rio seco)",
-                7: "7: / (Rio cortado)"
-                }
-            if 'Status' in df.columns:
-                # 1. Converte para numérico (caso venha como string ou float do CSV)
-                df['Status'] = pd.to_numeric(df['Status'], errors='coerce')
-                
-                # 2. Mapeia os valores e preenche o que sobrar (nulos) com "Em branco"
-                df['Status'] = df['Status'].map(mapa_status).fillna("Em branco")
-
-            datasets[chave] = df
-        except Exception as e:
-            st.error(f"Erro crítico ao carregar {chave}: {e}")
-            datasets[chave] = None
-    
-    
-    #- Grava no session_state para garantir compatibilidade
-    for chave, df in datasets.items():
-        st.session_state[chave] = df
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 """ Carrega o arquivo .csv como um DataFrame"""
@@ -278,36 +209,36 @@ def carregaCSV_drive(file_id):
         return None
 
 #< ------------------------------------------------------------------------------------------------------------------------------
-def menu_filtros_multi(df_input):
+def menu_filtros_multi(lista_dfs):
     """
     Cria menu superior global que preserva seleção em todas as páginas.
     Trata automaticamente a lógica de Ano/Mês para Data ou ValidadeInicio/Fim.
+
+    Recebe um DataFrame ou uma lista
     """
-    
+    #- Se receber apenas um DF fora de uma lista, transforma em lista para o loop
+    if not isinstance(lista_dfs, list):
+        lista_dfs = [lista_dfs]
+
     #- 1. INICIALIZAÇÃO DE ESTADOS GLOBAIS (Se não existirem)
     for sufixo in ['ur', 'cod', 'ano', 'mes']:
         global_key = f'filtro_{sufixo}'
         widget_key = f'w_{sufixo}'
         
-        # Se não existe o global (primeira vez), cria vazio
         if global_key not in st.session_state:
             st.session_state[global_key] = []
-            
+    
         # FORÇA: O widget deve SEMPRE carregar o que está no global.
         # Isso evita que o 'reset' do Streamlit na mudança de página limpe o dado.
         st.session_state[widget_key] = st.session_state[global_key]
 
-    df = df_input.copy()
-        
-    #- Padronização de nomes de colunas (já é renomeado no carregamento)
-    # if 'EstacaoCodigo' in df.columns:
-    #     df.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
-
-    mapa_nomes = df.drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
+    #- Usamos o primeiro DF da lista para mapear nomes de estações para o widget
+    df_ref = lista_dfs[0]
+    mapa_nomes = df_ref.drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
 
     # --- FUNÇÃO INTERNA PARA GERAR AS OPÇÕES DOS DROPDOWNS ---
     def obter_opcoes(coluna_alvo):
-        temp = df.copy()
+        temp = df_ref.copy()
         
         # Lógica para gerar opções de Ano/Mês quando as colunas não existem (Balanceamento e Curvas)
         if coluna_alvo in ['Ano', 'Mes'] and 'Data' not in temp.columns and 'ValidadeInicio' in temp.columns:
@@ -348,6 +279,7 @@ def menu_filtros_multi(df_input):
         st.session_state.filtro_ano = st.session_state.w_ano
         st.session_state.filtro_mes = st.session_state.w_mes
 
+    #- colunas de filtro
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
@@ -386,56 +318,64 @@ def menu_filtros_multi(df_input):
     #- Sincroniza os valores após a renderização para garantir que o DF use o dado atual
     atualizar_filtros()
 
-    # --- APLICAÇÃO DOS FILTROS NO DATAFRAME FINAL ---
-    df_filtrado = df.copy()
+    # --- APLICAÇÃO DOS FILTROS EM TODOS OS DFs ---
+    dfs_filtrados = []
+    for df in lista_dfs:
+        dff = df.copy()
     
-    #- Filtros de UR e Codigo
-    if st.session_state.filtro_ur:
-        df_filtrado = df_filtrado[df_filtrado['UR'].isin(st.session_state.filtro_ur)]
-    if st.session_state.filtro_cod:
-        df_filtrado = df_filtrado[df_filtrado['Codigo'].isin(st.session_state.filtro_cod)]
+        #- Filtros de UR e Codigo
+        if st.session_state.filtro_ur:
+            dff = dff[dff['UR'].isin(st.session_state.filtro_ur)]
+        if st.session_state.filtro_cod:
+            dff = dff[dff['Codigo'].isin(st.session_state.filtro_cod)]
 
-    # Filtros de Tempo (Lógica Dual: Data vs Intervalo)
-    if st.session_state.filtro_ano or st.session_state.filtro_mes:
-        # CASO A: Balanceamento (ValidadeInicio e ValidadeFim)
-        if 'ValidadeInicio' in df_filtrado.columns and 'Data' not in df_filtrado.columns:
+        #- Filtros de Tempo (Lógica Dual: Data vs Intervalo)
+        if st.session_state.filtro_ano or st.session_state.filtro_mes:
             
-            #- FILTRO DE ANO POR INTERSEÇÃO
-            if st.session_state.filtro_ano:
-                ano_min = min(st.session_state.filtro_ano)
-                ano_max = max(st.session_state.filtro_ano)
+            #* CASO A: Balanceamento e Curvas (ValidadeInicio e ValidadeFim)
+            if 'ValidadeInicio' in dff.columns and 'Data' not in dff.columns:
                 
-                # Uma curva é válida se o seu início ocorre até o fim do período filtrado
-                # E o seu fim ocorre após o início do período filtrado.
-                mask_ano = (df_filtrado['ValidadeInicio'].dt.year <= ano_max) & \
-                           (df_filtrado['ValidadeFim'].dt.year >= ano_min)
-                df_filtrado = df_filtrado[mask_ano]
-
-            #- FILTRO DE MÊS
-            if st.session_state.filtro_mes:
-                # Para meses, a lógica de intervalo é mais complexa se cruzar anos,
-                # mas se o objetivo é ver curvas que estiveram ativas naqueles meses:
-                mes_min = min(st.session_state.filtro_mes)
-                mes_max = max(st.session_state.filtro_mes)
+                # Determinamos o range de anos e meses selecionados
+                # Se não houver seleção, usamos o mínimo/máximo possível do dado
+                ano_min = min(st.session_state.filtro_ano) if st.session_state.filtro_ano else dff['ValidadeInicio'].dt.year.min()
+                ano_max = max(st.session_state.filtro_ano) if st.session_state.filtro_ano else dff['ValidadeFim'].dt.year.max()
                 
-                # Simplificando: a curva deve ter meses que se sobreponham ao range selecionado
-                mask_mes = (df_filtrado['ValidadeInicio'].dt.month <= mes_max) & \
-                           (df_filtrado['ValidadeFim'].dt.month >= mes_min)
-                df_filtrado = df_filtrado[mask_mes]
-        
-        # CASO B: Páginas Padrão (Coluna 'Ano' e 'Mes' existentes)
-        else:
-            if st.session_state.filtro_ano:
-                df_filtrado = df_filtrado[df_filtrado['Ano'].isin(st.session_state.filtro_ano)]
-            if st.session_state.filtro_mes:
-                df_filtrado = df_filtrado[df_filtrado['Mes'].isin(st.session_state.filtro_mes)]
+                mes_min = min(st.session_state.filtro_mes) if st.session_state.filtro_mes else 1
+                mes_max = max(st.session_state.filtro_mes) if st.session_state.filtro_mes else 12
 
-    #- Aviso de dados não encontrados
-    if df_filtrado.empty:
+                # Criamos datas artificiais de início e fim do período filtrado para comparação real
+                # Ex: Se filtrou 2023 e mês 5, o período é de 01/05/2023 até o fim de 2023 (ou fim de maio)
+                data_limite_inicio = pd.Timestamp(int(ano_min), int(mes_min), 1)
+                
+                # Data de Fim: Usamos MonthEnd para garantir o último dia correto do mês
+                # Primeiro criamos o dia 1 do mês máximo
+                data_base_fim = pd.Timestamp(int(ano_max), int(mes_max), 1)
+                # O Pandas calcula o último dia real (28, 29, 30 ou 31)
+                data_limite_fim = data_base_fim + pd.offsets.MonthEnd(0)
+
+                # --- FILTRO POR INTERSEÇÃO TOTAL ---
+                # A curva é válida se:
+                # 1. O início da curva é anterior ou igual ao fim do período filtrado
+                # 2. O fim da curva é posterior ou igual ao início do período filtrado
+                mask_intersecao = (dff['ValidadeInicio'] <= data_limite_fim) & \
+                                 (dff['ValidadeFim'] >= data_limite_inicio)
+                
+                dff = dff[mask_intersecao]
+
+            #* CASO B: Páginas Padrão (Coluna 'Ano' e 'Mes' existentes)
+            else:
+                if st.session_state.filtro_ano:
+                    dff = dff[dff['Ano'].isin(st.session_state.filtro_ano)]
+                if st.session_state.filtro_mes:
+                    dff = dff[dff['Mes'].isin(st.session_state.filtro_mes)]
+        dfs_filtrados.append(dff)
+
+    #- Aviso de dados não encontrados para a lista principal
+    if lista_dfs[0].empty:
         st.warning("⚠️ **Nenhum dado encontrado para os filtros selecionados nesta página.**")
         st.info("💡 Clique em 'Limpar Filtros' para resetar a visão.")
 
-    return df_filtrado
+    return dfs_filtrados if len(dfs_filtrados) > 1 else dfs_filtrados[0]
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 # --- Função para limpar os filtros ---
@@ -458,7 +398,6 @@ def menu_reset_cache():
         st.subheader("Manutenção")
         if st.button("🔄 Recarregar Base de Dados"):
             # 1. Limpa o cache das funções decoradas com @st.cache_data
-            # st.cache_data.clear()
             obter_dados_base.clear()
             
             # 2. Limpa as variáveis de dados no session_state para forçar a recarga
@@ -477,5 +416,7 @@ def menu_reset_cache():
 #< ------------------------------------------------------------------------------------------------------------------------------
 #< ------------------------------------------------------------------------------------------------------------------------------
 #< ------------------------------------------------------------------------------------------------------------------------------
+
+
 
 
