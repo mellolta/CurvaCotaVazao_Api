@@ -30,6 +30,19 @@ cota = st.session_state['cota']
 df_filtrado = fc.menu_filtros_multi(cota)
 
 # < ------------------------------------------------------------------------------------------------------------------------------
+# --- BLOCO DE FILTROS DE AVANÇADOS ---
+with st.expander("🔍 Filtros Avançados"):
+    st.markdown(":gray[Selecione 'Intervalo' para ativar os filtros por coluna.]")
+    
+    if not df_filtrado.empty:
+        # Coluna 1
+        c_filtros_1, c_filtros_2 = st.columns(2)
+        
+        with c_filtros_1:
+            # Cada chamada "lapida" o df_filtrado (recursividade)
+            df_filtrado = fc.filtro_numerico(df_filtrado, 'Cota', 'Cota (cm)')
+
+# < ------------------------------------------------------------------------------------------------------------------------------
 #$ Botões para limpar filtros e exibir resultado
 
 c_btn1, _, c_btn2 = st.columns([1, 4, 1])

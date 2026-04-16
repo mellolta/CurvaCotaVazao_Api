@@ -13,6 +13,7 @@ __pycache__/
 # Configurações sensíveis (IMPORTANTE)
 .streamlit/secrets.toml
 Historico.txt
+teste.py
 
 # Pastas de dados locais e backups
 csv/

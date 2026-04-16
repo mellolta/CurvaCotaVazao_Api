@@ -378,16 +378,115 @@ def menu_filtros_multi(lista_dfs):
     return dfs_filtrados if len(dfs_filtrados) > 1 else dfs_filtrados[0]
 
 #< ------------------------------------------------------------------------------------------------------------------------------
+def filtro_numerico(df, coluna, label):
+    """
+    Cria um filtro híbrido (Input + Slider) que se auto-ajusta
+    conforme os dados filtrados por outros componentes (Estação, UR, etc).
+    """
+    col_sel, col_inputs = st.columns([1, 2])
+    
+    with col_sel:
+        tipo = st.selectbox(f"Filtrar {label}", ["Todos", "Intervalo"], key=f"tipo_{coluna}")
+    
+    df_result = df.copy()
+    
+    if tipo == "Intervalo":
+        # 1. Calculamos os limites REAIS dos dados atuais
+        v_min_abs = float(df[coluna].min())
+        v_max_abs = float(df[coluna].max())
+
+        # Chaves para o session_state
+        k_min = f"v_min_{coluna}"
+        k_max = f"v_max_{coluna}"
+        k_slider = f"slide_widget_{coluna}"
+
+        # 2. VALIDAÇÃO CRÍTICA: Se os limites do session_state estão fora da realidade 
+        # dos novos dados (ex: mudou a estação), nós os resetamos.
+        if k_min not in st.session_state or st.session_state[k_min] < v_min_abs or st.session_state[k_min] > v_max_abs:
+            st.session_state[k_min] = v_min_abs
+        if k_max not in st.session_state or st.session_state[k_max] > v_max_abs or st.session_state[k_max] < v_min_abs:
+            st.session_state[k_max] = v_max_abs
+
+        # --- FUNÇÕES DE SINCRONIZAÇÃO (CALLBACKS) ---
+        def update_slider():
+            # Quando o número muda, atualiza o slider
+            st.session_state[k_slider] = (st.session_state[f"num_min_{coluna}"], st.session_state[f"num_max_{coluna}"])
+            st.session_state[k_min] = st.session_state[f"num_min_{coluna}"]
+            st.session_state[k_max] = st.session_state[f"num_max_{coluna}"]
+
+        def update_numbers():
+            # Quando o slider muda, atualiza os números
+            st.session_state[k_min] = st.session_state[k_slider][0]
+            st.session_state[k_max] = st.session_state[k_slider][1]
+
+        with col_inputs:
+            c_min, c_max = st.columns(2)
+            
+            # Usamos os valores validados do session_state
+            val_min = c_min.number_input(
+                f"Maior que ({label})", 
+                min_value=v_min_abs, 
+                max_value=v_max_abs,
+                value=st.session_state[k_min],
+                step=0.001 if v_max_abs < 100 else 1.0,
+                key=f"num_min_{coluna}", # Adicionado key única para o widget
+                on_change=update_slider # Gatilho: alterou número -> move slider
+            )
+            
+            val_max = c_max.number_input(
+                f"Menor que ({label})", 
+                min_value=v_min_abs, 
+                max_value=v_max_abs,
+                value=st.session_state[k_max],
+                step=0.001 if v_max_abs < 100 else 1.0,
+                key=f"num_max_{coluna}",
+                on_change=update_slider # Gatilho: alterou número -> move slider
+            )
+
+            # 2. Slider
+            # Se as chaves de número mudaram via digitação, o slider precisa nascer com o valor novo
+            if k_slider not in st.session_state:
+                st.session_state[k_slider] = (st.session_state[k_min], st.session_state[k_max])
+
+            # 3. Slider sincronizado
+            val_slider = st.slider(
+                f"Ajuste {label}",
+                min_value=v_min_abs, 
+                max_value=v_max_abs,
+                key=k_slider,
+                on_change=update_numbers, # Gatilho: moveu slider -> altera números
+                label_visibility="collapsed"
+            )
+
+            # Atualiza o state para a próxima rodada
+            st.session_state[k_min], st.session_state[k_max] = val_slider
+            
+            # Filtra o DataFrame
+            df_result = df_result[(df_result[coluna] >= st.session_state[k_min]) & 
+                                  (df_result[coluna] <= st.session_state[k_max])]
+            
+    return df_result
+
+#< ------------------------------------------------------------------------------------------------------------------------------
 # --- Função para limpar os filtros ---
 def limpar_filtros():
     """Reseta os filtros globais e limpa os widgets da tela."""
-    chaves = [
-        'filtro_ur', 'filtro_cod', 'filtro_ano', 'filtro_mes',
-        'w_ur', 'w_cod', 'w_ano', 'w_mes'
-    ]
-    for k in chaves:
+    # 1. Filtros de lista (Multiselect)
+    chaves_multi = ['filtro_ur', 'filtro_cod', 'filtro_ano', 'filtro_mes', 'w_ur', 'w_cod', 'w_ano', 'w_mes']
+    for k in chaves_multi:
         if k in st.session_state:
             st.session_state[k] = []
+
+    # 2. Filtros de Intervalo e Widgets Numéricos
+    # Deletamos tudo que começa com esses prefixos
+    prefixos = ['v_min_', 'v_max_', 'tipo_', 'num_min_', 'num_max_', 'slide_widget_']
+    
+    # Criamos uma lista das chaves para não modificar o dicionário durante o loop
+    chaves_atuais = list(st.session_state.keys())
+    
+    for key in chaves_atuais:
+        if any(prefix in key for prefix in prefixos):
+            del st.session_state[key]
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 def menu_reset_cache():

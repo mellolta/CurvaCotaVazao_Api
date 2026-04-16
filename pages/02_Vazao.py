@@ -23,11 +23,31 @@ if 'vazao' not in st.session_state:
     st.error("Dados não carregados.")
     st.stop()
 
-#- DataFrame vazao (carregado na página principal e já definido no session_state)
+#- DataFrame vazao 
 vazao = st.session_state['vazao']
 
 #- Chama a função que retorna o dataframe já filtrado
 df_filtrado = fc.menu_filtros_multi(vazao)
+
+# < ------------------------------------------------------------------------------------------------------------------------------
+# --- BLOCO DE FILTROS DE AVANÇADOS ---
+with st.expander("🔍 Filtros Avançados"):
+    st.markdown(":gray[Selecione 'Intervalo' para ativar os filtros por coluna.]")
+    
+    if not df_filtrado.empty:
+        # Coluna 1
+        c_filtros_1, c_filtros_2 = st.columns(2)
+        
+        with c_filtros_1:
+            # Cada chamada "lapida" o df_filtrado (recursividade)
+            df_filtrado = fc.filtro_numerico(df_filtrado, 'Cota', 'Cota (cm)')
+            st.divider() # Pequena linha separadora entre os filtros
+            df_filtrado = fc.filtro_numerico(df_filtrado, 'Desvio', 'Desvio (%)')
+            
+        with c_filtros_2:
+            df_filtrado = fc.filtro_numerico(df_filtrado, 'Vazao', 'Vazão (m³/s)')
+            st.divider()
+            df_filtrado = fc.filtro_numerico(df_filtrado, 'Qcalc', 'QCalc (m³/s)')
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Botões para limpar filtros e exibir resultado
@@ -35,10 +55,10 @@ df_filtrado = fc.menu_filtros_multi(vazao)
 c_btn1, _, c_btn2 = st.columns([1, 4, 1])
 
 # --- Botão para limpar todos os filtros ---
-c_btn1.button("Limpar Filtros",          # legenda do botão
+c_btn1.button("Limpar Filtros",             # legenda do botão
               on_click=fc.limpar_filtros,   # função a ser chamada quando o botão for clicado
-              use_container_width=False, # faz o botão ocupar toda a largura da coluna
-              type= "secondary")         # estilo do botão (opcional)
+              use_container_width=False,    # faz o botão ocupar toda a largura da coluna
+              type= "secondary")            # estilo do botão (opcional)
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #- Se o DF estiver vazio, paramos a execução aqui para não dar erro nas métricas abaixo

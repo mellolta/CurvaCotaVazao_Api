@@ -34,6 +34,34 @@ curvas = st.session_state['curvas']
 df_med_filtrado, df_curvas_filtrado = fc.menu_filtros_multi([medicoes, curvas])
 
 # < ------------------------------------------------------------------------------------------------------------------------------
+# --- BLOCO DE FILTROS DE AVANÇADOS ---
+with st.expander("🔍 Filtros Avançados"):
+    st.markdown(":gray[Selecione 'Intervalo' para ativar os filtros por coluna.]")
+    
+    if not df_med_filtrado.empty:
+        # Coluna 1
+        c_filtros_1, c_filtros_2 = st.columns(2)
+        
+        with c_filtros_1:
+            # Cada chamada "lapida" o df_med_filtrado (recursividade)
+            df_med_filtrado = fc.filtro_numerico(df_med_filtrado, 'Cota', 'Cota (cm)')
+            st.divider() # Pequena linha separadora entre os filtros
+            df_med_filtrado = fc.filtro_numerico(df_med_filtrado, 'Vazao', 'Vazão (m³/s)')
+            st.divider() # Pequena linha separadora entre os filtros
+            df_med_filtrado = fc.filtro_numerico(df_med_filtrado, 'Qcalc', 'QCalc (m³/s)')
+            st.divider() # Pequena linha separadora entre os filtros
+            df_med_filtrado = fc.filtro_numerico(df_med_filtrado, 'Desvio', 'Desvio (%)')
+            
+        with c_filtros_2:
+            df_med_filtrado = fc.filtro_numerico(df_med_filtrado, 'AreaMolh', 'AreaMolh (m²)')
+            st.divider()
+            df_med_filtrado = fc.filtro_numerico(df_med_filtrado, 'Largura', 'Largura (m)')
+            st.divider()
+            df_med_filtrado = fc.filtro_numerico(df_med_filtrado, 'VelMedia', 'VelMedia (m/s)')
+            st.divider()
+            df_med_filtrado = fc.filtro_numerico(df_med_filtrado, 'Prof', 'Prof (m)')
+
+# < ------------------------------------------------------------------------------------------------------------------------------
 # --- 2. APLICAÇÃO DOS FILTROS NA CURVA (ESTAÇÃO + TEMPO) ---
 ur_sel = st.session_state.filtro_ur
 estacoes_sel = st.session_state.filtro_cod
