@@ -48,7 +48,7 @@ def obter_dados_base():
         'balanceamento': st.secrets["id_balanceamento"],
         'cota': st.secrets["id_cota"],
         'medicoes': st.secrets["id_medicoes"],
-        'outliers': st.secrets["id_outliers"],
+        # 'outliers': st.secrets["id_outliers"],
         'vazao': st.secrets["id_vazao"],
         'curvas': st.secrets["id_curvas"]
     }
@@ -112,7 +112,8 @@ def verificar_e_carregar_dados():
     # Lista de chaves que DEVEM existir no session_state
     chaves_essenciais = [
         'balanceamento', 'cota', 'medicoes', 
-        'outliers', 'vazao', 'curvas'
+        # 'outliers', 
+        'vazao', 'curvas'
     ]
     
     # Verifica se alguma chave está faltando ou está vazia (None)
@@ -502,7 +503,8 @@ def menu_reset_cache():
             # 2. Limpa as variáveis de dados no session_state para forçar a recarga
             chaves_para_limpar = [
                 'balanceamento', 'cota', 'medicoes', 
-                'outliers', 'vazao', 'curvas'
+                # 'outliers', 
+                'vazao', 'curvas'
             ]
             for chave in chaves_para_limpar:
                 if chave in st.session_state:

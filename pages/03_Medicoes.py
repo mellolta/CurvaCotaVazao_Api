@@ -71,12 +71,12 @@ meses_sel = st.session_state.filtro_mes
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Botões para limpar filtros e exibir resultado
 
-c_btn1, _, c_btn2 = st.columns([1, 4, 1])
+c_btn1, _, c_btn2 = st.columns([1, 3, 2]) # Ajustado o espaçamento para acomodar o checkbox de ordenação
 
 # --- Botão para limpar todos os filtros ---
 c_btn1.button("Limpar Filtros",             # legenda do botão
               on_click=fc.limpar_filtros,   # função a ser chamada quando o botão for clicado
-              use_container_width=False,    # faz o botão ocupar toda a largura da coluna
+              width='content',              # faz o botão ocupar toda a largura da coluna
               type= "secondary")            # estilo do botão (opcional)
 
 # < ------------------------------------------------------------------------------------------------------------------------------
@@ -99,12 +99,11 @@ exibe_medicoes.rename(columns={
 #- Cria uma coluna temporária para o desvio absoluto (facilita a ordenação)
 exibe_medicoes['Desvio_Abs'] = exibe_medicoes['Desvio'].abs()
 
-#- Botão para ordenar pelos casos mais críticos
-if c_btn2.button("🔥 Ordenar por Maior Desvio", 
-                 use_container_width=True, 
-                 type="primary"):
+# REQUISITO 3: Substituição do botão por Checkbox para manter o estado da ordenação estável
+ordenar_desvio = c_btn2.checkbox("🔥 Ordenar por Maior Desvio", value=False)
+
+if ordenar_desvio:
     exibe_medicoes = exibe_medicoes.sort_values(by='Desvio_Abs', ascending=False)
-    st.success("Ordenado pelos maiores desvios absolutos.")
 else:
     # Ordem padrão (geralmente por data ou como vier do banco)
     exibe_medicoes = exibe_medicoes.sort_values(by='Data', ascending=False)
@@ -173,7 +172,7 @@ df_estilizado = df_para_estilizar.style.format({
 .map(colorir_desvio, subset=['Desvio']) # <--- Aplica a cor apenas na coluna Desvio
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Exibe o DataFrame resultante com a formatação aplicada
+#$ Exibe o DataFrame resultante com a formatação applied
 
 #- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner
 st.dataframe(
@@ -235,10 +234,6 @@ st.dataframe(
                                              help="Ano da leitura"),
         "Mes": st.column_config.NumberColumn("Mês", format="%d", 
                                              help="Mês da leitura"),
-        # Notas: Quando usamos .style.format, o 'format' do column_config 
-        # pode ser omitido para as colunas numéricas estilizadas.
-        # Datas formatadas (O Styler não mexe nestas se não estiverem no .format)
-
     }
 )
 
@@ -254,7 +249,6 @@ if not estacoes_sel:
 
 if len(estacoes_sel) > 1:
     st.error(f"❌ Você selecionou {len(estacoes_sel)} estações. Por favor, selecione **apenas uma** para analisar a Curva Chave.")
-    # st.info("💡 O gráfico de Curva-Chave requer uma análise individual por seção do rio.")
     st.stop()
 
 # < ------------------------------------------------------------------------------------------------------------------------------
@@ -263,15 +257,10 @@ if len(estacoes_sel) > 1:
 # --- 3. GERAÇÃO DA LINHA DA CURVA ---
 def gerar_pontos_curva(df_curvas):
     pontos = []
-    # Ordenar por curva e tramo para a linha não "saltar" no gráfico
     df_curvas = df_curvas.sort_values(['Curva', 'TramoCotaMin'])
     
     for _, tramo in df_curvas.iterrows():
-        # Gerar 100 pontos entre o mínimo e máximo do tramo
         h_range = np.linspace(tramo['TramoCotaMin'], tramo['TramoCotaMax'], 100)
-        
-        # Fórmula: Q = A * (H/100 - H0)^N
-        # np.maximum evita erros matemáticos se H/100 < H0
         q_calc = tramo['CoefA'] * ((np.maximum(h_range/100 - tramo['CoefH0'], 0.001)) ** tramo['CoefN'])
         
         df_t = pd.DataFrame({'Cota': h_range, 'Vazao': q_calc})
@@ -280,25 +269,69 @@ def gerar_pontos_curva(df_curvas):
     
     return pd.concat(pontos) if pontos else pd.DataFrame()
 
-# --- 4. CONSTRUÇÃO DO PLOTLY ---
+# Dicionário auxiliar para mapear e desenhar as legendas das cores de forma idêntica nos dois gráficos
+config_legendas = [
+    {"nome": "Desvio < |10%|", "cor": "blue"},
+    {"nome": "Desvio |10%| a |20%|", "cor": "yellow"},
+    {"nome": "Desvio |20%| a |30%|", "cor": "orange"},
+    {"nome": "Desvio > |30%|", "cor": "red"}
+]
+
+# --- 4. CONSTRUÇÃO DO PLOTLY (COTA VS VAZÃO) ---
+
+# Checkboxes para alternar as escalas logarítmicas
+st.markdown("### Configurações de Escala do Gráfico Cota vs Vazão")
+col_log1, col_log2 = st.columns(2)
+with col_log1:
+    log_cota = st.checkbox("Log Cota (Eixo Y)")
+with col_log2:
+    log_vazao = st.checkbox("Log Vazão (Eixo X)")
+
+# Criando a lista de cores
+cores_cota_vazao = []
+for desvio in df_med_filtrado['Desvio']:
+    mod_desvio = abs(desvio)
+    if mod_desvio < 10:
+        cores_cota_vazao.append('blue')
+    elif 10 <= mod_desvio <= 20:
+        cores_cota_vazao.append('yellow')
+    elif mod_desvio > 30:
+        cores_cota_vazao.append('red')
+    else:
+        cores_cota_vazao.append('orange')
+
+
 fig = go.Figure()
 
-#- Medições
+#- Medições (Cota vs Vazão)
 if not df_med_filtrado.empty:
     fig.add_trace(go.Scatter(
         x=df_med_filtrado['Vazao'],
         y=df_med_filtrado['Cota'],
         mode='markers',
         name='Medições',
+        legendgroup="medicoes",     # Agrupa o rastro principal
+        showlegend=False,           # Oculta o rastro bruto para usar os itens da legenda colorida
         marker=dict(
-            size=10, color=df_med_filtrado['Desvio'].abs(),
-            colorscale='Viridis', showscale=True,
-            colorbar=dict(title="Desvio %", x=1.1)
+            size=10, 
+            color=cores_cota_vazao,  # <--- Aplicando as cores corretas para esta ordenação
+            line=dict(width=1, color='black')  # Borda preta ajuda a enxergar pontos amarelos
         ),
         text=df_med_filtrado['Data'],
         customdata=df_med_filtrado['Desvio'],
         hovertemplate="<b>Data:</b> %{text}<br><b>Vazão:</b> %{x:.2f}<br><b>Cota:</b> %{y:.0f}<br><b>Desvio:</b> %{customdata:.1f}%<extra></extra>"
     ))
+
+    # Adiciona as legendas das faixas de desvio no gráfico de Cota vs Vazão
+    for item in config_legendas:
+        fig.add_trace(go.Scatter(
+            x=[None], y=[None],     # Pontos invisíveis (não aparecem no gráfico)
+            mode='markers',
+            name=item["nome"],
+            marker=dict(size=10, color=item["cor"], line=dict(width=1, color='black')),
+            legendgroup="medicoes",
+            showlegend=True
+        ))
 
 #- Linhas das Curvas
 if not df_curvas_filtrado.empty:
@@ -311,27 +344,134 @@ if not df_curvas_filtrado.empty:
             line=dict(width=3)
         ))
 
-#- Estilização
+#- Estilização e definição de escalas dinâmicas
 mapa_nomes = st.session_state['medicoes'].drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
 nome_estacao = mapa_nomes.get(estacoes_sel[0], "Não encontrada")
+
+# Define dinamicamente o tipo dos eixos com base nos checkboxes do Requisito 2
+tipo_eixo_x = "log" if log_vazao else "linear"
+tipo_eixo_y = "log" if log_cota else "linear"
 
 fig.update_layout(
     title={
         'text': f"Medições de descarga x Curva chave<br><sup>Estação: {estacoes_sel[0]} - {nome_estacao}</sup>",
-        'x': 0.5,           # Posiciona o título no meio da largura do gráfico
-        'xanchor': 'center', # Garante que o ponto de ancoragem seja o centro do texto
-        'yanchor': 'top'    # Garante o alinhamento vertical no topo
+        'x': 0.5,
+        'xanchor': 'center',
+        'yanchor': 'top'
     },
-    xaxis_title="Vazão (m³/s)", 
-    yaxis_title="Cota (cm)",
-    height=700, 
+    xaxis_title="Vazão (m³/s)" if not log_vazao else "Log Vazão (m³/s)", 
+    yaxis_title="Cota (cm)" if not log_cota else "Log Cota (cm)",
+    xaxis=dict(type=tipo_eixo_x),
+    yaxis=dict(type=tipo_eixo_y),
+    height=600, 
     template="plotly_white",
-    hovermode="closest"
+    hovermode="closest",
+    legend=dict(title_text="<b>Legenda</b>") # Título do bloco da legenda
 )
 
 st.plotly_chart(fig, width='stretch')
 
-# Tabela de conferência com Tooltips (ajuda ao passar o mouse)
+
+# --- REQUISITO 1: GRÁFICO DE DESVIO PERCENTUAL AO LONGO DO TEMPO ---
+st.divider()
+fig_desvio = go.Figure()
+
+if not df_med_filtrado.empty:
+    # Garante ordenação cronológica estrita apenas para a plotagem da linha temporal
+    df_desvio_temporal = df_med_filtrado.sort_values(by='Data')
+    
+    # Geramos a lista de cores baseada estritamente no DataFrame já ordenado!
+    cores_desvio_temporal = []
+    for desvio in df_desvio_temporal['Desvio']:
+        mod_desvio = abs(desvio)
+        if mod_desvio < 10:
+            cores_desvio_temporal.append('blue')
+        elif 10 <= mod_desvio <= 20:
+            cores_desvio_temporal.append('yellow')
+        elif mod_desvio > 30:
+            cores_desvio_temporal.append('red')
+        else:
+            cores_desvio_temporal.append('orange')
+
+    # Adiciona linha de dispersão dos desvios ao longo do tempo
+    fig_desvio.add_trace(go.Scatter(
+        x=df_desvio_temporal['Data'],
+        y=df_desvio_temporal['Desvio'],
+        mode='markers',
+        name='Desvio Mensurado',
+        showlegend=False,           # Oculta o rastro bruto para usar os itens da legenda colorida
+        marker=dict(
+            size=10,
+            color=cores_desvio_temporal,  # <--- Agora a correspondência linha/cor está 100% correta
+            line=dict(width=1, color='black')
+        ),
+        text=df_desvio_temporal['Cota'],
+        customdata=df_desvio_temporal['Vazao'],
+        hovertemplate="<b>Data:</b> %{x}<br><b>Desvio:</b> %{y:.2f}%<br><b>Cota:</b> %{text:.0f} cm<br><b>Vazão:</b> %{customdata:.2f} m³/s<extra></extra>"
+    ))
+
+    # Adiciona as legendas das faixas de desvio no gráfico Temporal
+    for item in config_legendas:
+        fig_desvio.add_trace(go.Scatter(
+            x=[None], y=[None],     # Pontos invisíveis
+            mode='markers',
+            name=item["nome"],
+            marker=dict(size=10, color=item["cor"], line=dict(width=1, color='black')),
+            showlegend=True
+        ))
+    
+    #- 4. Configuração dos Eixos 
+    fig_desvio.update_xaxes(
+        tickangle=45,
+        title_text="Data",
+        title_font={"size": 20},
+        title_standoff=25,
+        tickformat="%Y",
+        dtick="M12",  # Intervalo de 1 ano (12 meses)
+        showgrid=True,
+    )
+
+    fig_desvio.update_yaxes(
+        tickangle=0,
+        title_text="Desvio(%)",
+        title_font={"size": 20},
+        title_standoff=25,
+        #- 1. Linha do ZERO super destacada
+        zeroline=True,
+        zerolinecolor="black",
+        zerolinewidth=1.0,
+        #- 2. Grade Principal (de 10 em 10) - Mais escura
+        dtick=10,
+        showgrid=True,
+        gridcolor="rgba(120, 120, 120, 0.6)",  # Cinza intermediário/escuro
+        gridwidth=1.2,
+        #- 3. Grade Secundária (de 5 em 5) - Mais clara
+        minor=dict(
+            dtick=5,
+            showgrid=True,
+            gridcolor="rgba(220, 220, 220, 0.4)",  # Cinza bem suave
+            gridwidth=0.8,
+        ),
+    )
+
+fig_desvio.update_layout(
+    title={
+        'text': f"Evolução do Desvio Percentual ao Longo do Tempo<br><sup>Estação: {estacoes_sel[0]} - {nome_estacao}</sup>",
+        'x': 0.5,
+        'xanchor': 'center',
+        'yanchor': 'top'
+    },
+    xaxis_title="Data da Medição",
+    yaxis_title="Desvio (%)",
+    height=500,
+    template="plotly_white",
+    hovermode="closest"
+)
+
+st.plotly_chart(fig_desvio, width='stretch')
+
+
+# Tabela de conferência com Tooltips
 with st.expander("Parâmetros das Curvas (Vigência filtrada)"):
     st.dataframe(
         df_curvas_filtrado[['Curva', 'ValidadeInicio', 'ValidadeFim', 'Tramo', 'CoefA', 'CoefH0', 'CoefN']], 
@@ -346,4 +486,5 @@ with st.expander("Parâmetros das Curvas (Vigência filtrada)"):
             "CoefN": st.column_config.NumberColumn("Cof. N", help="Expoente da equação (declividade da curva no papel logarítmico)."),
         }
     )
+
 
