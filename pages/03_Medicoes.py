@@ -464,7 +464,6 @@ fig_desvio.update_layout(
     xaxis_title="Data da Medição",
     yaxis_title="Desvio (%)",
     height=500,
-    template="plotly_white",
     hovermode="closest"
 )
 
@@ -474,13 +473,15 @@ st.plotly_chart(fig_desvio, width='stretch')
 # Tabela de conferência com Tooltips
 with st.expander("Parâmetros das Curvas (Vigência filtrada)"):
     st.dataframe(
-        df_curvas_filtrado[['Curva', 'ValidadeInicio', 'ValidadeFim', 'Tramo', 'CoefA', 'CoefH0', 'CoefN']], 
+        df_curvas_filtrado[['Curva', 'ValidadeInicio', 'ValidadeFim', 'Tramo', 'TramoCotaMax', 'TramoCotaMin', 'CoefA', 'CoefH0', 'CoefN']], 
         hide_index=True,
         column_config={
             "Curva": st.column_config.TextColumn("Curva", help="Número de identificação da curva chave."),
             "ValidadeInicio": st.column_config.DateColumn("Início", help="Data de início da vigência desta curva."),
             "ValidadeFim": st.column_config.DateColumn("Fim", help="Data de término da vigência desta curva."),
             "Tramo": st.column_config.NumberColumn("Tramo", help="Segmento da curva (ex: 1º tramo para vazões baixas, 2º para médias)."),
+            "TramoCotaMax": st.column_config.NumberColumn("Cota Máx.", help="Cota máxima do tramo (em metros)."),
+            "TramoCotaMin": st.column_config.NumberColumn("Cota Mín.", help="Cota mínima do tramo (em metros)."),
             "CoefA": st.column_config.NumberColumn("Cof. A", help="Coeficiente de escala da equação Q = A * (H - H0)^N."),
             "CoefH0": st.column_config.NumberColumn("Cof. H0", help="Cota de vazão nula (em metros)."),
             "CoefN": st.column_config.NumberColumn("Cof. N", help="Expoente da equação (declividade da curva no papel logarítmico)."),

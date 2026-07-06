@@ -47,24 +47,30 @@ def obter_dados_base():
     mapeamento_arquivos = {
         'balanceamento': st.secrets["id_balanceamento"],
         'cota': st.secrets["id_cota"],
+        'cota_vazao': st.secrets["id_cota_vazao"],
+        'cotas2L': st.secrets["id_cotas2L"],
+        'curvas': st.secrets["id_curvas"],
         'medicoes': st.secrets["id_medicoes"],
-        # 'outliers': st.secrets["id_outliers"],
-        'vazao': st.secrets["id_vazao"],
-        'curvas': st.secrets["id_curvas"]
+        'passo_diario': st.secrets["id_passo_diario"],
+        'vazao': st.secrets["id_vazao"]
     }
     # mapeamento_arquivos = {
-    #     'balanceamento': 'balanceamento.csv',
-    #     'cota': 'cota.csv',
-    #     'medicoes': 'medicoes.csv',
-    #     'outliers': 'outliers.csv',
-    #     'vazao': 'vazao.csv'
-    #     'curvas': 'curvas.csv'
+    #     'balanceamento': 'balanceamento.parquet',
+    #     'cota': 'cota.parquet',
+    #     'medicoes': 'medicoes.parquet',
+    #     'passo_diario': 'passo_diario.parquet',
+    #     'vazao': 'vazao.parquet',
+    #     'curvas': 'curvas.parquet',
+    #     'cota_vazao': 'cota_vazao.parquet',
+    #     'cotas2L': 'cotas2L.parquet',
     # }
     
     datasets = {}
     for chave, file_id in mapeamento_arquivos.items():
         try:
-            df = carregaCSV_drive(file_id)
+            df = carrega_parquet_drive(file_id)
+            # df = carrega_parquet_local(file_id)
+            # df = carregaCSV_drive(file_id)
             # df = carregaCSV_local(file_id) 
 
             if df is not None:
@@ -73,9 +79,9 @@ def obter_dados_base():
                     df.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
                 
                 #- 2. Conversão de datas
-                for col in ['Data', 'ValidadeInicio', 'ValidadeFim']:
-                    if col in df.columns:
-                        df[col] = pd.to_datetime(df[col], format='%Y-%m-%d', errors='coerce')
+                # for col in ['Data', 'Data_Hora', 'ValidadeInicio', 'ValidadeFim']:
+                #     if col in df.columns:
+                #         df[col] = pd.to_datetime(df[col], format='%Y-%m-%d', errors='coerce')
                 
             #- 3. Tratamento de Status
             if 'Status' in df.columns:
@@ -112,8 +118,8 @@ def verificar_e_carregar_dados():
     # Lista de chaves que DEVEM existir no session_state
     chaves_essenciais = [
         'balanceamento', 'cota', 'medicoes', 
-        # 'outliers', 
-        'vazao', 'curvas'
+        'passo_diario', 
+        'vazao', 'curvas', 'cota_vazao', 'cotas2L'
     ]
     
     # Verifica se alguma chave está faltando ou está vazia (None)
@@ -126,7 +132,7 @@ def verificar_e_carregar_dados():
         #- O spinner mostra uma animação e a mensagem enquanto a função roda
         with st.spinner("Carregando base de dados..."):
             dados = obter_dados_base()
-            # O dicionário 'dados' contém as chaves do mapeamento_arquivos
+            #- O dicionário 'dados' contém as chaves do mapeamento_arquivos
             for chave, df in dados.items():
                 st.session_state[chave] = df
 
@@ -171,6 +177,76 @@ def carregaCSV_local(csv_file:str)-> pd.DataFrame:
             df[col] = pd.to_datetime(df[col], format='%Y-%m-%d', errors='coerce')
         
     return df
+
+#< ------------------------------------------------------------------------------------------------------------------------------
+""" Carrega o arquivo .parquet como um DataFrame"""
+def carrega_parquet_local(parquet_file: str) -> pd.DataFrame:
+    """ Carrega o arquivo .parquet quando estiver usando a pasta local
+        - Remove índices residuais se houverem
+        - Transforma as colunas de data para DateTime
+    """
+    #- 1. Definimos o diretório base como um objeto Path
+    base_dir = Path(r'C:\Users\luis.mello\Documents\Python\Scripts\Projetos_CPRM\CurvaCotaVazao\Resultado\parquet')
+    
+    #- 2. Extraímos apenas o nome do arquivo (caso o usuário passe um caminho relativo)
+    nome_arquivo = Path(parquet_file).name
+    
+    #- 3. Criamos o caminho completo usando o operador '/'
+    caminho_completo = base_dir / nome_arquivo
+    
+    #- Verificação amigável de erro
+    if not caminho_completo.exists():
+        raise FileNotFoundError(f"⚠️ O arquivo não foi encontrado em: {caminho_completo}")
+    
+    # O pandas lerá o arquivo parquet preservando os tipos originais
+    df = pd.read_parquet(caminho_completo)
+    
+    #- Tratamento de coluna de índice residual (caso exista)
+    if len(df.columns) > 0 and df.columns[0] == 'Unnamed: 0':
+        df.drop(columns=[df.columns[0]], inplace=True)
+    
+    #- Lista de colunas para garantir a conversão para DateTime
+    colunas_data = ['Data', 'Data_Hora', 'ValidadeInicio', 'ValidadeFim']
+
+    #- Conversão de Data (Removido o 'format' fixo para evitar quebras com Timestamp completo)
+    for col in colunas_data:
+        if col in df.columns:
+            df[col] = pd.to_datetime(df[col], errors='coerce')
+        
+    return df
+
+#< ------------------------------------------------------------------------------------------------------------------------------
+""" Carrega o arquivo .parquet como um DataFrame"""
+@st.cache_data(ttl=3600)
+def carrega_parquet_drive(file_id):
+    """ Carrega o arquivo .parquet se for um ID do Google Drive, formata a URL.
+    """
+    url = f'https://drive.google.com/uc?export=download&id={file_id}'
+
+    try:
+        # O pandas lerá o arquivo parquet preservando os tipos originais
+        df = pd.read_parquet(url)
+        
+        if df.columns[0] == 'Unnamed: 0':
+            df.drop(columns=[df.columns[0]], inplace=True)    
+
+        #- Tratamento de coluna de índice residual (caso exista)
+        if len(df.columns) > 0 and df.columns[0] == 'Unnamed: 0':
+            df.drop(columns=[df.columns[0]], inplace=True)
+        
+        #- Lista de colunas para garantir a conversão para DateTime
+        colunas_data = ['Data', 'Data_Hora', 'ValidadeInicio', 'ValidadeFim']
+
+        #- Conversão de Data (Removido o 'format' fixo para evitar quebras com Timestamp completo)
+        for col in colunas_data:
+            if col in df.columns:
+                df[col] = pd.to_datetime(df[col], errors='coerce')
+        
+        return df
+    
+    except Exception as e:
+        st.error(f"Erro ao carregar os dados: {e}")
+        return None
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 """st.cache_data(ttl=3600): Como o arquivo CSV está na web, carregar ele toda vez que você clica em um botão deixaria o app lento. 
