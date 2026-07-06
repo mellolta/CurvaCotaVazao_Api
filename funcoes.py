@@ -3,6 +3,8 @@
 Funções importantes
 """
 #$ Bibliotecas
+import io
+import requests
 import streamlit as st
 import pandas as pd
 import locale
@@ -47,11 +49,11 @@ def obter_dados_base():
     mapeamento_arquivos = {
         'balanceamento': st.secrets["id_balanceamento"],
         'cota': st.secrets["id_cota"],
-        'cota_vazao': st.secrets["id_cota_vazao"],
-        'cotas2L': st.secrets["id_cotas2L"],
+        # 'cota_vazao': st.secrets["id_cota_vazao"],
+        # 'cotas2L': st.secrets["id_cotas2L"],
         'curvas': st.secrets["id_curvas"],
         'medicoes': st.secrets["id_medicoes"],
-        'passo_diario': st.secrets["id_passo_diario"],
+        # 'passo_diario': st.secrets["id_passo_diario"],
         'vazao': st.secrets["id_vazao"]
     }
     # mapeamento_arquivos = {
@@ -68,9 +70,9 @@ def obter_dados_base():
     datasets = {}
     for chave, file_id in mapeamento_arquivos.items():
         try:
-            df = carrega_parquet_drive(file_id)
+            # df = carrega_parquet_drive(file_id)
             # df = carrega_parquet_local(file_id)
-            # df = carregaCSV_drive(file_id)
+            df = carregaCSV_drive(file_id)
             # df = carregaCSV_local(file_id) 
 
             if df is not None:
@@ -115,14 +117,14 @@ def verificar_e_carregar_dados():
     Garante que TODAS as tabelas essenciais estejam no session_state.
     Se faltar qualquer uma, recarrega o pacote completo.
     """
-    # Lista de chaves que DEVEM existir no session_state
+    #- Lista de chaves que DEVEM existir no session_state
     chaves_essenciais = [
         'balanceamento', 'cota', 'medicoes', 
-        'passo_diario', 
-        'vazao', 'curvas', 'cota_vazao', 'cotas2L'
+        # 'passo_diario', 'cota_vazao', 'cotas2L',
+        'vazao', 'curvas'
     ]
     
-    # Verifica se alguma chave está faltando ou está vazia (None)
+    #- Verifica se alguma chave está faltando ou está vazia (None)
     precisa_carregar = any(
         chave not in st.session_state or st.session_state[chave] is None 
         for chave in chaves_essenciais
@@ -219,21 +221,15 @@ def carrega_parquet_local(parquet_file: str) -> pd.DataFrame:
 """ Carrega o arquivo .parquet como um DataFrame"""
 @st.cache_data(ttl=3600)
 def carrega_parquet_drive(file_id):
-    """ Carrega o arquivo .parquet se for um ID do Google Drive, formata a URL.
-    """
-    url = f'https://drive.google.com/uc?export=download&id={file_id}'
+
+    url = f"https://drive.google.com/uc?export=download&id={file_id}"
 
     try:
-        # O pandas lerá o arquivo parquet preservando os tipos originais
-        df = pd.read_parquet(url)
-        
-        if df.columns[0] == 'Unnamed: 0':
-            df.drop(columns=[df.columns[0]], inplace=True)    
+        resposta = requests.get(url)
+        resposta.raise_for_status()
 
-        #- Tratamento de coluna de índice residual (caso exista)
-        if len(df.columns) > 0 and df.columns[0] == 'Unnamed: 0':
-            df.drop(columns=[df.columns[0]], inplace=True)
-        
+        df = pd.read_parquet(io.BytesIO(resposta.content))
+
         #- Lista de colunas para garantir a conversão para DateTime
         colunas_data = ['Data', 'Data_Hora', 'ValidadeInicio', 'ValidadeFim']
 
@@ -241,9 +237,9 @@ def carrega_parquet_drive(file_id):
         for col in colunas_data:
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors='coerce')
-        
+
         return df
-    
+
     except Exception as e:
         st.error(f"Erro ao carregar os dados: {e}")
         return None

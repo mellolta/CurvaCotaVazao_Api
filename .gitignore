@@ -4,6 +4,8 @@ venv/
 env/
 bin/
 lib64/
+uv.lock
+pyproject.toml
 
 # Cache do Python
 __pycache__/
@@ -25,4 +27,5 @@ Thumbs.db
 
 # Arquivos em edição
 pages/06_Teste.py
+pages/05_Serie_Temporal.py
 

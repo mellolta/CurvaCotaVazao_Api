@@ -23,7 +23,7 @@ fc.configuracoes_iniciais()
 
 #- texto centralizado (h1 se refere ao título principal, h4 aos subtítulos)
 st.markdown("""<h1 style='text-align: center; color: blue;'
-            >Análise e verificação do banco SQL das URs</h1>""", 
+            >Análise e verificação de Cota, Vazão, Medições e Curva chave do banco SQL das URs</h1>""", 
             unsafe_allow_html=True)
 
 st.markdown(""":blue[Selecione a página na aba lateral conforme a descrição abaixo:]""")
@@ -41,7 +41,7 @@ st.markdown("""
             :green[Balanceamento] :grey[: Resultado equivalente à saída 449 do SIADH "449_Características das Curva-Chave_Por Periodo Validade.xls"]  
             :yellow[==== >>>> Atenção]: curvas com desvio superior a 20% ou balanceamento das medições superior a 30%-70% estão destacadas em vermelho.  
 
-            :green[Passo diário] :grey[: Compara a cota e a vazão com o dia anterior ]  
+            :green[Série Temporal] :grey[: Série temporal e análise comparativa dos valores de cota e a vazão com o dia anterior ]  
             :yellow[==== >>>> Atenção]: filtros ativos para diferenças percentuais acima de de 50% (e absolutas maiores que 10).  
             """)
 
