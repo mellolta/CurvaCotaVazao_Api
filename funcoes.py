@@ -36,7 +36,7 @@ def configuracoes_iniciais():
     st.image("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png", width=200)
 
     #- Garante que os dados existam antes da página renderizar
-    verificar_e_carregar_dados()
+    verificar_e_carregar_todas_as_tabelas()
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data(ttl=3600) # Expira em 3600 segundos (1 hora)
@@ -112,7 +112,7 @@ def obter_dados_base():
     return datasets
 
 #< ------------------------------------------------------------------------------------------------------------------------------
-def verificar_e_carregar_dados():
+def verificar_e_carregar_todas_as_tabelas():
     """
     Garante que TODAS as tabelas essenciais estejam no session_state.
     Se faltar qualquer uma, recarrega o pacote completo.
@@ -575,7 +575,7 @@ def menu_reset_cache():
             # 2. Limpa as variáveis de dados no session_state para forçar a recarga
             chaves_para_limpar = [
                 'balanceamento', 'cota', 'medicoes', 
-                # 'outliers', 
+                # 'passo_diario', 'cota_vazao', 'cotas2L',
                 'vazao', 'curvas'
             ]
             for chave in chaves_para_limpar:
