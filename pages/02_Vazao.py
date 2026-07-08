@@ -12,8 +12,11 @@ import pandas as pd
 import funcoes as fc
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Configurações iniciais
+#- Configurações iniciais da página
 fc.configuracoes_iniciais()
+
+#- Carrega os dados necessários para essa página
+fc.gerenciar_pagina_e_carregar("02_Vazao", ["vazao"])
 
 #- Título e descrição da página
 st.subheader("Vazão do banco SQL X Vazão calculada pela curva-chave (Qcalc)")

@@ -14,8 +14,11 @@ import plotly.graph_objects as go
 import funcoes as fc
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Configurações iniciais
+#- Configurações iniciais da página
 fc.configuracoes_iniciais()
+
+#- Carrega os dados necessários para essa página
+fc.gerenciar_pagina_e_carregar("03_Medicoes", ["medicoes", "curvas"])
 
 #- Título e descrição da página
 st.subheader("Medição e desvio em relação à curva-chave que está no banco SQL")

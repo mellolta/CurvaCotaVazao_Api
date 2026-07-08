@@ -15,8 +15,11 @@ import pandas as pd
 import funcoes as fc
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Configurações iniciais
+#- Configurações iniciais da página
 fc.configuracoes_iniciais()
+
+#- Carrega os dados necessários para essa página
+fc.gerenciar_pagina_e_carregar("04_Balanceamento", ["balanceamento"])
 
 #- Título e descrição da página
 st.subheader("Balanceamento das medições por período de validade da curva-chave no banco SQL")

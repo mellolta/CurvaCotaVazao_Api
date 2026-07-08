@@ -36,7 +36,81 @@ def configuracoes_iniciais():
     st.image("https://intranet.sgb.gov.br/publique/media/marketing/logosgb_horizontal_original_v2.png", width=200)
 
     #- Garante que os dados existam antes da página renderizar
-    verificar_e_carregar_todas_as_tabelas()
+    # verificar_e_carregar_todas_as_tabelas()
+
+#< ------------------------------------------------------------------------------------------------------------------------------
+#$ Mapeamento centralizado (fora da função para ficar organizado)
+
+MAPEAMENTO_ARQUIVOS = {
+    'balanceamento': "id_balanceamento",
+    'cota': "id_cota",
+    'curvas': "id_curvas",
+    'medicoes': "id_medicoes",
+    'vazao': "id_vazao"
+}
+
+#< ------------------------------------------------------------------------------------------------------------------------------
+@st.cache_data(ttl=3600)  # Mantém o cache por 1 hora por tabela carregada
+def obter_tabela_por_chave(chave):
+    """
+    Carrega, processa e retorna APENAS a tabela solicitada.
+    """
+    if chave not in MAPEAMENTO_ARQUIVOS:
+        st.error(f"Chave '{chave}' não encontrada no mapeamento.")
+        return None
+        
+    secret_id = MAPEAMENTO_ARQUIVOS[chave]
+    file_id = st.secrets[secret_id]
+    
+    try:
+        # Carrega apenas o arquivo necessário
+        df = carregaCSV_drive(file_id)
+        
+        if df is not None:
+            # 1. Padronização de Colunas
+            if 'EstacaoCodigo' in df.columns:
+                df.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
+            
+            # 2. Tratamento de Status
+            if 'Status' in df.columns:
+                mapa_status = {
+                    0: "Em branco", 1: "1: Validado", 2: "2: * (Estimado)",
+                    3: "3: ? (Duvidoso)", 4: "4: # (Régua seca)",
+                    5: "5: ! (Régua coberta)", 6: "6: @ (Rio seco)", 7: "7: / (Rio cortado)"
+                }
+                df['Status'] = pd.to_numeric(df['Status'], errors='coerce')
+                df['Status'] = df['Status'].map(mapa_status).fillna("Em branco")
+            
+            return df
+            
+    except Exception as e:
+        st.error(f"Erro ao carregar a tabela '{chave}': {e}")
+        return None
+
+#< ------------------------------------------------------------------------------------------------------------------------------
+def gerenciar_pagina_e_carregar(nome_pagina, chaves_da_pagina):
+    """
+    Gerencia a troca de páginas, limpa tabelas antigas do session_state 
+    e carrega apenas as tabelas necessárias para a página atual.
+    
+    chaves_da_pagina: lista de strings ex: ['balanceamento', 'vazao']
+    """
+    # 1. Se mudou de página, limpa o session_state das tabelas da página anterior
+    if "pagina_atual" in st.session_state and st.session_state.pagina_atual != nome_pagina:
+        chaves_para_limpar = [
+            'balanceamento', 'cota', 'medicoes', 'vazao', 'curvas'
+        ]
+        for chave in chaves_para_limpar:
+            if chave in st.session_state:
+                del st.session_state[chave]
+                
+    st.session_state.pagina_atual = nome_pagina
+
+    # 2. Carrega apenas o que a página atual precisa (se já não estiver no session_state)
+    for chave in chaves_da_pagina:
+        if chave not in st.session_state or st.session_state[chave] is None:
+            with st.spinner(f"Carregando dados de {chave}..."):
+                st.session_state[chave] = obter_tabela_por_chave(chave)
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 @st.cache_data(ttl=3600) # Expira em 3600 segundos (1 hora)

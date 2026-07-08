@@ -16,8 +16,11 @@ import plotly.express as px  # Adicionado para o gráfico
 import plotly.graph_objects as go  # Adicionado para gráficos com múltiplas camadas
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Configurações iniciais
+#- Configurações iniciais da página
 fc.configuracoes_iniciais()
+
+#- Carrega os dados necessários para essa página
+fc.gerenciar_pagina_e_carregar("05_Serie_temporal", ["passo_diario", "cota_vazao", "cotas2L", "medicoes"])
 
 #- Título e descrição da página
 st.subheader("Filtros para as séries temporais")
