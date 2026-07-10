@@ -44,11 +44,11 @@ def configuracoes_iniciais():
 MAPEAMENTO_ARQUIVOS = {
     'balanceamento': st.secrets["id_balanceamento"],
     'cota': st.secrets["id_cota"],
-    'cota_vazao': st.secrets["id_cota_vazao"],
-    'cotas2L': st.secrets["id_cotas2L"],
+    # 'cota_vazao': st.secrets["id_cota_vazao"],
+    # 'cotas2L': st.secrets["id_cotas2L"],
     'curvas': st.secrets["id_curvas"],
     'medicoes': st.secrets["id_medicoes"],
-    'passo_diario': st.secrets["id_passo_diario"],
+    # 'passo_diario': st.secrets["id_passo_diario"],
     'vazao': st.secrets["id_vazao"]
 }
 
@@ -118,11 +118,11 @@ def gerenciar_pagina_e_carregar(nome_pagina, chaves_da_pagina):
         chaves_para_limpar = [
             'balanceamento', 
             'cota', 
-            'cota_vazao', 
-            'cotas2L',
+            # 'cota_vazao', 
+            # 'cotas2L',
             'curvas', 
             'medicoes', 
-            'passo_diario', 
+            # 'passo_diario', 
             'vazao'
         ]
 
@@ -275,188 +275,6 @@ def carregaCSV_drive(file_id):
     except Exception as e:
         st.error(f"Erro ao carregar os dados: {e}")
         return None
-
-#< ------------------------------------------------------------------------------------------------------------------------------
-def menu_filtros_multi_(lista_dfs):
-    """
-    Cria menu superior global que preserva seleção em todas as páginas.
-    Trata automaticamente a lógica de Ano/Mês para Data ou ValidadeInicio/Fim.
-
-    Recebe um DataFrame ou uma lista
-    """
-    #- Se receber apenas um DF fora de uma lista, transforma em lista para o loop
-    if not isinstance(lista_dfs, list):
-        lista_dfs = [lista_dfs]
-
-    #- VALIDAÇÃO: Verifica se todos os DataFrames são válidos
-    for i, df in enumerate(lista_dfs):
-        if df is None or df.empty:
-            st.warning(f"⚠️ O DataFrame na posição {i} está vazio ou é None. Verifique o carregamento dos dados.")
-            # Retorna DataFrames vazios para evitar erro
-            return [pd.DataFrame() for _ in lista_dfs]
-
-    #- 1. INICIALIZAÇÃO DE ESTADOS GLOBAIS (Se não existirem)
-    for sufixo in ['ur', 'cod', 'ano', 'mes']:
-        global_key = f'filtro_{sufixo}'
-        widget_key = f'w_{sufixo}'
-        
-        if global_key not in st.session_state:
-            st.session_state[global_key] = []
-    
-        # FORÇA: O widget deve SEMPRE carregar o que está no global.
-        # Isso evita que o 'reset' do Streamlit na mudança de página limpe o dado.
-        st.session_state[widget_key] = st.session_state[global_key]
-
-    #- Usamos o primeiro DF da lista para mapear nomes de estações para o widget
-    df_ref = lista_dfs[0]
-
-    #- Verificação adicional
-    if df_ref is None or df_ref.empty or 'Codigo' not in df_ref.columns:
-        st.error("❌ O DataFrame de referência não contém a coluna 'Codigo' ou está vazio.")
-        return [pd.DataFrame() for _ in lista_dfs]
-    
-    mapa_nomes = df_ref.drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
-
-    # --- FUNÇÃO INTERNA PARA GERAR AS OPÇÕES DOS DROPDOWNS ---
-    def obter_opcoes(coluna_alvo):
-        temp = df_ref.copy()
-        
-        # Lógica para gerar opções de Ano/Mês quando as colunas não existem (Balanceamento e Curvas)
-        if coluna_alvo in ['Ano', 'Mes'] and 'Data' not in temp.columns and 'ValidadeInicio' in temp.columns:
-            if coluna_alvo == 'Ano':
-                # Criamos um set para armazenar todos os anos únicos dentro de cada intervalo
-                anos_totais = set()
-                for _, row in temp[['ValidadeInicio', 'ValidadeFim']].dropna().iterrows():
-                    # Gera a lista de anos entre o início e o fim (ex: 2022, 2023, 2024)
-                    for ano in range(row['ValidadeInicio'].year, row['ValidadeFim'].year + 1):
-                        anos_totais.add(ano)
-                return sorted(list(anos_totais), reverse=True)
-            
-            if coluna_alvo == 'Mes':
-                # Para meses, geralmente mostramos de 1 a 12 se houver dados
-                return sorted(temp['ValidadeInicio'].dt.month.dropna().unique().tolist())
-
-        # Filtragem cruzada para as opções (se selecionar UR, limita as Estações)
-        if coluna_alvo != 'UR' and st.session_state.filtro_ur:
-            temp = temp[temp['UR'].isin(st.session_state.filtro_ur)]
-        if coluna_alvo != 'Codigo' and st.session_state.filtro_cod:
-            temp = temp[temp['Codigo'].isin(st.session_state.filtro_cod)]
-        
-        # Filtro de Ano/Mes só se a coluna existir no DataFrame atual
-        if 'Ano' in temp.columns and coluna_alvo != 'Ano' and st.session_state.filtro_ano:
-            temp = temp[temp['Ano'].isin(st.session_state.filtro_ano)]
-        if 'Mes' in temp.columns and coluna_alvo != 'Mes' and st.session_state.filtro_mes:
-            temp = temp[temp['Mes'].isin(st.session_state.filtro_mes)]
-
-        if coluna_alvo in temp.columns:
-            return sorted(temp[coluna_alvo].unique().tolist())
-        return []
-
-    # --- RENDERIZAÇÃO DA INTERFACE ---
-    # Função auxiliar para o callback (resolve o problema do clique duplo)
-    def atualizar_filtros():
-        st.session_state.filtro_ur = st.session_state.w_ur
-        st.session_state.filtro_cod = st.session_state.w_cod
-        st.session_state.filtro_ano = st.session_state.w_ano
-        st.session_state.filtro_mes = st.session_state.w_mes
-
-    #- colunas de filtro
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        ops = obter_opcoes('UR')
-        st.multiselect(
-            'Unidade Regional', options=ops, 
-            key='w_ur', # Chave do widget
-            on_change=atualizar_filtros
-        )
-
-    with col2:
-        ops = obter_opcoes('Codigo')
-        st.multiselect(
-            'Estação', options=ops, 
-            key='w_cod',
-            format_func=lambda c: f"{c} - {mapa_nomes.get(c, 'N/A')}",
-            on_change=atualizar_filtros
-        )
-
-    with col3:
-        ops = sorted(obter_opcoes('Ano'), reverse=True)
-        st.multiselect(
-            'Ano', options=ops, 
-            key='w_ano',
-            on_change=atualizar_filtros
-        )
-
-    with col4:
-        ops = obter_opcoes('Mes')
-        st.multiselect(
-            'Mês', options=ops, 
-            key='w_mes',
-            on_change=atualizar_filtros
-        )
-    
-    #- Sincroniza os valores após a renderização para garantir que o DF use o dado atual
-    atualizar_filtros()
-
-    # --- APLICAÇÃO DOS FILTROS EM TODOS OS DFs ---
-    dfs_filtrados = []
-    for df in lista_dfs:
-        dff = df.copy()
-    
-        #- Filtros de UR e Codigo
-        if st.session_state.filtro_ur:
-            dff = dff[dff['UR'].isin(st.session_state.filtro_ur)]
-        if st.session_state.filtro_cod:
-            dff = dff[dff['Codigo'].isin(st.session_state.filtro_cod)]
-
-        #- Filtros de Tempo (Lógica Dual: Data vs Intervalo)
-        if st.session_state.filtro_ano or st.session_state.filtro_mes:
-            
-            #* CASO A: Balanceamento e Curvas (ValidadeInicio e ValidadeFim)
-            if 'ValidadeInicio' in dff.columns and 'Data' not in dff.columns:
-                
-                # Determinamos o range de anos e meses selecionados
-                # Se não houver seleção, usamos o mínimo/máximo possível do dado
-                ano_min = min(st.session_state.filtro_ano) if st.session_state.filtro_ano else dff['ValidadeInicio'].dt.year.min()
-                ano_max = max(st.session_state.filtro_ano) if st.session_state.filtro_ano else dff['ValidadeFim'].dt.year.max()
-                
-                mes_min = min(st.session_state.filtro_mes) if st.session_state.filtro_mes else 1
-                mes_max = max(st.session_state.filtro_mes) if st.session_state.filtro_mes else 12
-
-                # Criamos datas artificiais de início e fim do período filtrado para comparação real
-                # Ex: Se filtrou 2023 e mês 5, o período é de 01/05/2023 até o fim de 2023 (ou fim de maio)
-                data_limite_inicio = pd.Timestamp(int(ano_min), int(mes_min), 1)
-                
-                # Data de Fim: Usamos MonthEnd para garantir o último dia correto do mês
-                # Primeiro criamos o dia 1 do mês máximo
-                data_base_fim = pd.Timestamp(int(ano_max), int(mes_max), 1)
-                # O Pandas calcula o último dia real (28, 29, 30 ou 31)
-                data_limite_fim = data_base_fim + pd.offsets.MonthEnd(0)
-
-                # --- FILTRO POR INTERSEÇÃO TOTAL ---
-                # A curva é válida se:
-                # 1. O início da curva é anterior ou igual ao fim do período filtrado
-                # 2. O fim da curva é posterior ou igual ao início do período filtrado
-                mask_intersecao = (dff['ValidadeInicio'] <= data_limite_fim) & \
-                                 (dff['ValidadeFim'] >= data_limite_inicio)
-                
-                dff = dff[mask_intersecao]
-
-            #* CASO B: Páginas Padrão (Coluna 'Ano' e 'Mes' existentes)
-            else:
-                if st.session_state.filtro_ano:
-                    dff = dff[dff['Ano'].isin(st.session_state.filtro_ano)]
-                if st.session_state.filtro_mes:
-                    dff = dff[dff['Mes'].isin(st.session_state.filtro_mes)]
-        dfs_filtrados.append(dff)
-
-    #- Aviso de dados não encontrados para a lista principal
-    if lista_dfs[0].empty:
-        st.warning("⚠️ **Nenhum dado encontrado para os filtros selecionados nesta página.**")
-        st.info("💡 Clique em 'Limpar Filtros' para resetar a visão.")
-
-    return dfs_filtrados if len(dfs_filtrados) > 1 else dfs_filtrados[0]
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 def menu_filtros_multi(lista_dfs):
@@ -854,5 +672,188 @@ def limpar_filtros():
 #             # 3. Notifica o usuário e reinicia o app
 #             st.success("Cache limpo! Recarregando dados...")
 #             st.rerun()
+
+#< ------------------------------------------------------------------------------------------------------------------------------
+# def menu_filtros_multi_(lista_dfs):
+#     """
+#     Cria menu superior global que preserva seleção em todas as páginas.
+#     Trata automaticamente a lógica de Ano/Mês para Data ou ValidadeInicio/Fim.
+
+#     Recebe um DataFrame ou uma lista
+#     """
+#     #- Se receber apenas um DF fora de uma lista, transforma em lista para o loop
+#     if not isinstance(lista_dfs, list):
+#         lista_dfs = [lista_dfs]
+
+#     #- VALIDAÇÃO: Verifica se todos os DataFrames são válidos
+#     for i, df in enumerate(lista_dfs):
+#         if df is None or df.empty:
+#             st.warning(f"⚠️ O DataFrame na posição {i} está vazio ou é None. Verifique o carregamento dos dados.")
+#             # Retorna DataFrames vazios para evitar erro
+#             return [pd.DataFrame() for _ in lista_dfs]
+
+#     #- 1. INICIALIZAÇÃO DE ESTADOS GLOBAIS (Se não existirem)
+#     for sufixo in ['ur', 'cod', 'ano', 'mes']:
+#         global_key = f'filtro_{sufixo}'
+#         widget_key = f'w_{sufixo}'
+        
+#         if global_key not in st.session_state:
+#             st.session_state[global_key] = []
+    
+#         # FORÇA: O widget deve SEMPRE carregar o que está no global.
+#         # Isso evita que o 'reset' do Streamlit na mudança de página limpe o dado.
+#         st.session_state[widget_key] = st.session_state[global_key]
+
+#     #- Usamos o primeiro DF da lista para mapear nomes de estações para o widget
+#     df_ref = lista_dfs[0]
+
+#     #- Verificação adicional
+#     if df_ref is None or df_ref.empty or 'Codigo' not in df_ref.columns:
+#         st.error("❌ O DataFrame de referência não contém a coluna 'Codigo' ou está vazio.")
+#         return [pd.DataFrame() for _ in lista_dfs]
+    
+#     mapa_nomes = df_ref.drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
+
+#     # --- FUNÇÃO INTERNA PARA GERAR AS OPÇÕES DOS DROPDOWNS ---
+#     def obter_opcoes(coluna_alvo):
+#         temp = df_ref.copy()
+        
+#         # Lógica para gerar opções de Ano/Mês quando as colunas não existem (Balanceamento e Curvas)
+#         if coluna_alvo in ['Ano', 'Mes'] and 'Data' not in temp.columns and 'ValidadeInicio' in temp.columns:
+#             if coluna_alvo == 'Ano':
+#                 # Criamos um set para armazenar todos os anos únicos dentro de cada intervalo
+#                 anos_totais = set()
+#                 for _, row in temp[['ValidadeInicio', 'ValidadeFim']].dropna().iterrows():
+#                     # Gera a lista de anos entre o início e o fim (ex: 2022, 2023, 2024)
+#                     for ano in range(row['ValidadeInicio'].year, row['ValidadeFim'].year + 1):
+#                         anos_totais.add(ano)
+#                 return sorted(list(anos_totais), reverse=True)
+            
+#             if coluna_alvo == 'Mes':
+#                 # Para meses, geralmente mostramos de 1 a 12 se houver dados
+#                 return sorted(temp['ValidadeInicio'].dt.month.dropna().unique().tolist())
+
+#         # Filtragem cruzada para as opções (se selecionar UR, limita as Estações)
+#         if coluna_alvo != 'UR' and st.session_state.filtro_ur:
+#             temp = temp[temp['UR'].isin(st.session_state.filtro_ur)]
+#         if coluna_alvo != 'Codigo' and st.session_state.filtro_cod:
+#             temp = temp[temp['Codigo'].isin(st.session_state.filtro_cod)]
+        
+#         # Filtro de Ano/Mes só se a coluna existir no DataFrame atual
+#         if 'Ano' in temp.columns and coluna_alvo != 'Ano' and st.session_state.filtro_ano:
+#             temp = temp[temp['Ano'].isin(st.session_state.filtro_ano)]
+#         if 'Mes' in temp.columns and coluna_alvo != 'Mes' and st.session_state.filtro_mes:
+#             temp = temp[temp['Mes'].isin(st.session_state.filtro_mes)]
+
+#         if coluna_alvo in temp.columns:
+#             return sorted(temp[coluna_alvo].unique().tolist())
+#         return []
+
+#     # --- RENDERIZAÇÃO DA INTERFACE ---
+#     # Função auxiliar para o callback (resolve o problema do clique duplo)
+#     def atualizar_filtros():
+#         st.session_state.filtro_ur = st.session_state.w_ur
+#         st.session_state.filtro_cod = st.session_state.w_cod
+#         st.session_state.filtro_ano = st.session_state.w_ano
+#         st.session_state.filtro_mes = st.session_state.w_mes
+
+#     #- colunas de filtro
+#     col1, col2, col3, col4 = st.columns(4)
+
+#     with col1:
+#         ops = obter_opcoes('UR')
+#         st.multiselect(
+#             'Unidade Regional', options=ops, 
+#             key='w_ur', # Chave do widget
+#             on_change=atualizar_filtros
+#         )
+
+#     with col2:
+#         ops = obter_opcoes('Codigo')
+#         st.multiselect(
+#             'Estação', options=ops, 
+#             key='w_cod',
+#             format_func=lambda c: f"{c} - {mapa_nomes.get(c, 'N/A')}",
+#             on_change=atualizar_filtros
+#         )
+
+#     with col3:
+#         ops = sorted(obter_opcoes('Ano'), reverse=True)
+#         st.multiselect(
+#             'Ano', options=ops, 
+#             key='w_ano',
+#             on_change=atualizar_filtros
+#         )
+
+#     with col4:
+#         ops = obter_opcoes('Mes')
+#         st.multiselect(
+#             'Mês', options=ops, 
+#             key='w_mes',
+#             on_change=atualizar_filtros
+#         )
+    
+#     #- Sincroniza os valores após a renderização para garantir que o DF use o dado atual
+#     atualizar_filtros()
+
+#     # --- APLICAÇÃO DOS FILTROS EM TODOS OS DFs ---
+#     dfs_filtrados = []
+#     for df in lista_dfs:
+#         dff = df.copy()
+    
+#         #- Filtros de UR e Codigo
+#         if st.session_state.filtro_ur:
+#             dff = dff[dff['UR'].isin(st.session_state.filtro_ur)]
+#         if st.session_state.filtro_cod:
+#             dff = dff[dff['Codigo'].isin(st.session_state.filtro_cod)]
+
+#         #- Filtros de Tempo (Lógica Dual: Data vs Intervalo)
+#         if st.session_state.filtro_ano or st.session_state.filtro_mes:
+            
+#             #* CASO A: Balanceamento e Curvas (ValidadeInicio e ValidadeFim)
+#             if 'ValidadeInicio' in dff.columns and 'Data' not in dff.columns:
+                
+#                 # Determinamos o range de anos e meses selecionados
+#                 # Se não houver seleção, usamos o mínimo/máximo possível do dado
+#                 ano_min = min(st.session_state.filtro_ano) if st.session_state.filtro_ano else dff['ValidadeInicio'].dt.year.min()
+#                 ano_max = max(st.session_state.filtro_ano) if st.session_state.filtro_ano else dff['ValidadeFim'].dt.year.max()
+                
+#                 mes_min = min(st.session_state.filtro_mes) if st.session_state.filtro_mes else 1
+#                 mes_max = max(st.session_state.filtro_mes) if st.session_state.filtro_mes else 12
+
+#                 # Criamos datas artificiais de início e fim do período filtrado para comparação real
+#                 # Ex: Se filtrou 2023 e mês 5, o período é de 01/05/2023 até o fim de 2023 (ou fim de maio)
+#                 data_limite_inicio = pd.Timestamp(int(ano_min), int(mes_min), 1)
+                
+#                 # Data de Fim: Usamos MonthEnd para garantir o último dia correto do mês
+#                 # Primeiro criamos o dia 1 do mês máximo
+#                 data_base_fim = pd.Timestamp(int(ano_max), int(mes_max), 1)
+#                 # O Pandas calcula o último dia real (28, 29, 30 ou 31)
+#                 data_limite_fim = data_base_fim + pd.offsets.MonthEnd(0)
+
+#                 # --- FILTRO POR INTERSEÇÃO TOTAL ---
+#                 # A curva é válida se:
+#                 # 1. O início da curva é anterior ou igual ao fim do período filtrado
+#                 # 2. O fim da curva é posterior ou igual ao início do período filtrado
+#                 mask_intersecao = (dff['ValidadeInicio'] <= data_limite_fim) & \
+#                                  (dff['ValidadeFim'] >= data_limite_inicio)
+                
+#                 dff = dff[mask_intersecao]
+
+#             #* CASO B: Páginas Padrão (Coluna 'Ano' e 'Mes' existentes)
+#             else:
+#                 if st.session_state.filtro_ano:
+#                     dff = dff[dff['Ano'].isin(st.session_state.filtro_ano)]
+#                 if st.session_state.filtro_mes:
+#                     dff = dff[dff['Mes'].isin(st.session_state.filtro_mes)]
+#         dfs_filtrados.append(dff)
+
+#     #- Aviso de dados não encontrados para a lista principal
+#     if lista_dfs[0].empty:
+#         st.warning("⚠️ **Nenhum dado encontrado para os filtros selecionados nesta página.**")
+#         st.info("💡 Clique em 'Limpar Filtros' para resetar a visão.")
+
+#     return dfs_filtrados if len(dfs_filtrados) > 1 else dfs_filtrados[0]
+
 
 
