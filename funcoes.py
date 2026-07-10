@@ -39,17 +39,34 @@ def configuracoes_iniciais():
     # verificar_e_carregar_todas_as_tabelas()
 
 #< ------------------------------------------------------------------------------------------------------------------------------
-#$ Mapeamento centralizado (fora da função para ficar organizado)
+#$ Mapeamento centralizado (obter_tabela_por_chave(chave)) para carregar apenas o necessário
 
 MAPEAMENTO_ARQUIVOS = {
-    'balanceamento': "id_balanceamento",
-    'cota': "id_cota",
-    'curvas': "id_curvas",
-    'medicoes': "id_medicoes",
-    'vazao': "id_vazao"
+    'balanceamento': st.secrets["id_balanceamento"],
+    'cota': st.secrets["id_cota"],
+    'cota_vazao': st.secrets["id_cota_vazao"],
+    'cotas2L': st.secrets["id_cotas2L"],
+    'curvas': st.secrets["id_curvas"],
+    'medicoes': st.secrets["id_medicoes"],
+    'passo_diario': st.secrets["id_passo_diario"],
+    'vazao': st.secrets["id_vazao"]
 }
 
+# MAPEAMENTO_ARQUIVOS = {
+#     'balanceamento': 'balanceamento.parquet',
+#     'cota': 'cota.parquet',
+#     'medicoes': 'medicoes.parquet',
+#     'passo_diario': 'passo_diario.parquet',
+#     'vazao': 'vazao.parquet',
+#     'curvas': 'curvas.parquet',
+#     'cota_vazao': 'cota_vazao.parquet',
+#     'cotas2L': 'cotas2L.parquet',
+# }
+
 #< ------------------------------------------------------------------------------------------------------------------------------
+"""st.cache_data(ttl=3600): Como o arquivo de dados está na web, carregar ele toda vez que você clica em um botão deixaria o app lento. 
+    Com isso, o Streamlit baixa o arquivo uma vez e o guarda na memória por 1 hora.
+"""
 @st.cache_data(ttl=3600)  # Mantém o cache por 1 hora por tabela carregada
 def obter_tabela_por_chave(chave):
     """
@@ -59,12 +76,13 @@ def obter_tabela_por_chave(chave):
         st.error(f"Chave '{chave}' não encontrada no mapeamento.")
         return None
         
-    secret_id = MAPEAMENTO_ARQUIVOS[chave]
-    file_id = st.secrets[secret_id]
+    file_id = MAPEAMENTO_ARQUIVOS[chave]
     
     try:
         # Carrega apenas o arquivo necessário
-        df = carregaCSV_drive(file_id)
+        # df = carregaCSV_drive(file_id)
+        df = carrega_parquet_drive(file_id)
+        # df = carrega_parquet_local(file_id)
         
         if df is not None:
             # 1. Padronização de Colunas
@@ -98,12 +116,20 @@ def gerenciar_pagina_e_carregar(nome_pagina, chaves_da_pagina):
     # 1. Se mudou de página, limpa o session_state das tabelas da página anterior
     if "pagina_atual" in st.session_state and st.session_state.pagina_atual != nome_pagina:
         chaves_para_limpar = [
-            'balanceamento', 'cota', 'medicoes', 'vazao', 'curvas'
+            'balanceamento', 
+            'cota', 
+            'cota_vazao', 
+            'cotas2L',
+            'curvas', 
+            'medicoes', 
+            'passo_diario', 
+            'vazao'
         ]
+
         for chave in chaves_para_limpar:
             if chave in st.session_state:
                 del st.session_state[chave]
-                
+    
     st.session_state.pagina_atual = nome_pagina
 
     # 2. Carrega apenas o que a página atual precisa (se já não estiver no session_state)
@@ -111,106 +137,6 @@ def gerenciar_pagina_e_carregar(nome_pagina, chaves_da_pagina):
         if chave not in st.session_state or st.session_state[chave] is None:
             with st.spinner(f"Carregando dados de {chave}..."):
                 st.session_state[chave] = obter_tabela_por_chave(chave)
-
-#< ------------------------------------------------------------------------------------------------------------------------------
-@st.cache_data(ttl=3600) # Expira em 3600 segundos (1 hora)
-def obter_dados_base():
-    """
-    Esta função carrega os dados e os mantém em cache.
-    Ela retorna o dicionário de DataFrames.
-    """
-    #- Mapeia as chaves aos IDs dos segredos (IDs dos arquivos no Google Drive)
-    mapeamento_arquivos = {
-        'balanceamento': st.secrets["id_balanceamento"],
-        'cota': st.secrets["id_cota"],
-        # 'cota_vazao': st.secrets["id_cota_vazao"],
-        # 'cotas2L': st.secrets["id_cotas2L"],
-        'curvas': st.secrets["id_curvas"],
-        'medicoes': st.secrets["id_medicoes"],
-        # 'passo_diario': st.secrets["id_passo_diario"],
-        'vazao': st.secrets["id_vazao"]
-    }
-    # mapeamento_arquivos = {
-    #     'balanceamento': 'balanceamento.parquet',
-    #     'cota': 'cota.parquet',
-    #     'medicoes': 'medicoes.parquet',
-    #     'passo_diario': 'passo_diario.parquet',
-    #     'vazao': 'vazao.parquet',
-    #     'curvas': 'curvas.parquet',
-    #     'cota_vazao': 'cota_vazao.parquet',
-    #     'cotas2L': 'cotas2L.parquet',
-    # }
-    
-    datasets = {}
-    for chave, file_id in mapeamento_arquivos.items():
-        try:
-            # df = carrega_parquet_drive(file_id)
-            # df = carrega_parquet_local(file_id)
-            df = carregaCSV_drive(file_id)
-            # df = carregaCSV_local(file_id) 
-
-            if df is not None:
-                #- 1. Padronização de Colunas
-                if 'EstacaoCodigo' in df.columns:
-                    df.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
-                
-                #- 2. Conversão de datas
-                # for col in ['Data', 'Data_Hora', 'ValidadeInicio', 'ValidadeFim']:
-                #     if col in df.columns:
-                #         df[col] = pd.to_datetime(df[col], format='%Y-%m-%d', errors='coerce')
-                
-            #- 3. Tratamento de Status
-            if 'Status' in df.columns:
-                mapa_status = {
-                    0: "Em branco",
-                    1: "1: Validado",
-                    2: "2: * (Estimado)",
-                    3: "3: ? (Duvidoso)",
-                    4: "4: # (Régua seca)",
-                    5: "5: ! (Régua coberta)",
-                    6: "6: @ (Rio seco)",
-                    7: "7: / (Rio cortado)"
-                    }
-                #- Converte para numérico (caso venha como string ou float do CSV)
-                df['Status'] = pd.to_numeric(df['Status'], errors='coerce')
-                
-                #- Mapeia os valores e preenche o que sobrar (nulos) com "Em branco"
-                df['Status'] = df['Status'].map(mapa_status).fillna("Em branco")
-
-            #- Grava no session_state
-            datasets[chave] = df
-
-        except Exception as e:
-            st.error(f"Erro ao carregar {chave}: {e}")
-
-    return datasets
-
-#< ------------------------------------------------------------------------------------------------------------------------------
-def verificar_e_carregar_todas_as_tabelas():
-    """
-    Garante que TODAS as tabelas essenciais estejam no session_state.
-    Se faltar qualquer uma, recarrega o pacote completo.
-    """
-    #- Lista de chaves que DEVEM existir no session_state
-    chaves_essenciais = [
-        'balanceamento', 'cota', 'medicoes', 
-        # 'passo_diario', 'cota_vazao', 'cotas2L',
-        'vazao', 'curvas'
-    ]
-    
-    #- Verifica se alguma chave está faltando ou está vazia (None)
-    precisa_carregar = any(
-        chave not in st.session_state or st.session_state[chave] is None 
-        for chave in chaves_essenciais
-    )
-
-    if precisa_carregar:
-        #- O spinner mostra uma animação e a mensagem enquanto a função roda
-        with st.spinner("Carregando base de dados..."):
-            dados = obter_dados_base()
-            #- O dicionário 'dados' contém as chaves do mapeamento_arquivos
-            for chave, df in dados.items():
-                st.session_state[chave] = df
 
 #< ------------------------------------------------------------------------------------------------------------------------------
 """ Carrega o arquivo .csv como um DataFrame"""
@@ -255,14 +181,14 @@ def carregaCSV_local(csv_file:str)-> pd.DataFrame:
     return df
 
 #< ------------------------------------------------------------------------------------------------------------------------------
-""" Carrega o arquivo .parquet como um DataFrame"""
 def carrega_parquet_local(parquet_file: str) -> pd.DataFrame:
     """ Carrega o arquivo .parquet quando estiver usando a pasta local
         - Remove índices residuais se houverem
         - Transforma as colunas de data para DateTime
     """
     #- 1. Definimos o diretório base como um objeto Path
-    base_dir = Path(r'C:\Users\luis.mello\Documents\Python\Scripts\Projetos_CPRM\CurvaCotaVazao\Resultado\parquet')
+    # base_dir = Path(r'C:\Users\luis.mello\Documents\Python\Scripts\Projetos_CPRM\CurvaCotaVazao\Resultado\parquet')
+    base_dir = Path(r'G:\Drives compartilhados\Consistencia_Hidrologica\Aplicativos\CurvaCotaVazao\parquet')
     
     #- 2. Extraímos apenas o nome do arquivo (caso o usuário passe um caminho relativo)
     nome_arquivo = Path(parquet_file).name
@@ -292,9 +218,8 @@ def carrega_parquet_local(parquet_file: str) -> pd.DataFrame:
     return df
 
 #< ------------------------------------------------------------------------------------------------------------------------------
-""" Carrega o arquivo .parquet como um DataFrame"""
-@st.cache_data(ttl=3600)
 def carrega_parquet_drive(file_id):
+    """ Carrega o arquivo .parquet como um DataFrame"""
 
     url = f"https://drive.google.com/uc?export=download&id={file_id}"
 
@@ -319,10 +244,6 @@ def carrega_parquet_drive(file_id):
         return None
 
 #< ------------------------------------------------------------------------------------------------------------------------------
-"""st.cache_data(ttl=3600): Como o arquivo CSV está na web, carregar ele toda vez que você clica em um botão deixaria o app lento. 
-    Com isso, o Streamlit baixa o arquivo uma vez e o guarda na memória por 1 hora.
-"""
-@st.cache_data(ttl=3600)
 def carregaCSV_drive(file_id):
     """
     Carrega o CSV. Se for um ID do Google Drive, formata a URL.
@@ -356,7 +277,7 @@ def carregaCSV_drive(file_id):
         return None
 
 #< ------------------------------------------------------------------------------------------------------------------------------
-def menu_filtros_multi(lista_dfs):
+def menu_filtros_multi_(lista_dfs):
     """
     Cria menu superior global que preserva seleção em todas as páginas.
     Trata automaticamente a lógica de Ano/Mês para Data ou ValidadeInicio/Fim.
@@ -366,6 +287,13 @@ def menu_filtros_multi(lista_dfs):
     #- Se receber apenas um DF fora de uma lista, transforma em lista para o loop
     if not isinstance(lista_dfs, list):
         lista_dfs = [lista_dfs]
+
+    #- VALIDAÇÃO: Verifica se todos os DataFrames são válidos
+    for i, df in enumerate(lista_dfs):
+        if df is None or df.empty:
+            st.warning(f"⚠️ O DataFrame na posição {i} está vazio ou é None. Verifique o carregamento dos dados.")
+            # Retorna DataFrames vazios para evitar erro
+            return [pd.DataFrame() for _ in lista_dfs]
 
     #- 1. INICIALIZAÇÃO DE ESTADOS GLOBAIS (Se não existirem)
     for sufixo in ['ur', 'cod', 'ano', 'mes']:
@@ -381,6 +309,12 @@ def menu_filtros_multi(lista_dfs):
 
     #- Usamos o primeiro DF da lista para mapear nomes de estações para o widget
     df_ref = lista_dfs[0]
+
+    #- Verificação adicional
+    if df_ref is None or df_ref.empty or 'Codigo' not in df_ref.columns:
+        st.error("❌ O DataFrame de referência não contém a coluna 'Codigo' ou está vazio.")
+        return [pd.DataFrame() for _ in lista_dfs]
+    
     mapa_nomes = df_ref.drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
 
     # --- FUNÇÃO INTERNA PARA GERAR AS OPÇÕES DOS DROPDOWNS ---
@@ -525,6 +459,167 @@ def menu_filtros_multi(lista_dfs):
     return dfs_filtrados if len(dfs_filtrados) > 1 else dfs_filtrados[0]
 
 #< ------------------------------------------------------------------------------------------------------------------------------
+def menu_filtros_multi(lista_dfs):
+    """
+    Cria menu superior global que preserva seleção em todas as páginas.
+    Trata automaticamente a lógica de Ano/Mês para Data ou ValidadeInicio/Fim.
+
+    Recebe um DataFrame ou uma lista
+    """
+    #- Se receber apenas um DF fora de uma lista, transforma em lista para o loop
+    if not isinstance(lista_dfs, list):
+        lista_dfs = [lista_dfs]
+
+    #- 1. INICIALIZAÇÃO DE ESTADOS GLOBAIS (Se não existirem)
+    for sufixo in ['ur', 'cod', 'ano', 'mes']:
+        global_key = f'filtro_{sufixo}'
+        widget_key = f'w_{sufixo}'
+        
+        if global_key not in st.session_state:
+            st.session_state[global_key] = []
+    
+        # FORÇA: O widget deve SEMPRE carregar o que está no global.
+        # Isso evita que o 'reset' do Streamlit na mudança de página limpe o dado.
+        st.session_state[widget_key] = st.session_state[global_key]
+
+    #- Usamos o primeiro DF da lista para mapear nomes de estações para o widget
+    df_ref = lista_dfs[0]
+
+    #- VALIDAÇÃO DO DF DE REFERÊNCIA: Ele é o único que DEVE ser válido para montar o menu
+    if df_ref is None or df_ref.empty or 'Codigo' not in df_ref.columns:
+        st.error("❌ O DataFrame de referência não contém a coluna 'Codigo' ou está vazio.")
+        return [pd.DataFrame() for _ in lista_dfs]
+    
+    mapa_nomes = df_ref.drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
+
+    # --- FUNÇÃO INTERNA PARA GERAR AS OPÇÕES DOS DROPDOWNS ---
+    def obter_opcoes(coluna_alvo):
+        temp = df_ref.copy()
+        
+        # Lógica para gerar opções de Ano/Mês quando as colunas não existem (Balanceamento e Curvas)
+        if coluna_alvo in ['Ano', 'Mes'] and 'Data' not in temp.columns and 'ValidadeInicio' in temp.columns:
+            if coluna_alvo == 'Ano':
+                # Criamos um set para armazenar todos os anos únicos dentro de cada intervalo
+                anos_totais = set()
+                for _, row in temp[['ValidadeInicio', 'ValidadeFim']].dropna().iterrows():
+                    # Gera a lista de anos entre o início e o fim (ex: 2022, 2023, 2024)
+                    for ano in range(row['ValidadeInicio'].year, row['ValidadeFim'].year + 1):
+                        anos_totais.add(ano)
+                return sorted(list(anos_totais), reverse=True)
+            
+            if coluna_alvo == 'Mes':
+                # Para meses, geralmente mostramos de 1 a 12 se houver dados
+                return sorted(temp['ValidadeInicio'].dt.month.dropna().unique().tolist())
+
+        #- Filtragem cruzada para as opções (se selecionar UR, limita as Estações)
+        if coluna_alvo != 'UR' and st.session_state.filtro_ur:
+            temp = temp[temp['UR'].isin(st.session_state.filtro_ur)]
+        if coluna_alvo != 'Codigo' and st.session_state.filtro_cod:
+            temp = temp[temp['Codigo'].isin(st.session_state.filtro_cod)]
+        
+        #- Filtro de Ano/Mes só se a coluna existir no DataFrame atual
+        if 'Ano' in temp.columns and coluna_alvo != 'Ano' and st.session_state.filtro_ano:
+            temp = temp[temp['Ano'].isin(st.session_state.filtro_ano)]
+        if 'Mes' in temp.columns and coluna_alvo != 'Mes' and st.session_state.filtro_mes:
+            temp = temp[temp['Mes'].isin(st.session_state.filtro_mes)]
+
+        if coluna_alvo in temp.columns:
+            return sorted(temp[coluna_alvo].unique().tolist())
+        return []
+
+    # --- RENDERIZAÇÃO DA INTERFACE ---
+    # Função auxiliar para o callback (resolve o problema do clique duplo)
+    def atualizar_filtros():
+        st.session_state.filtro_ur = st.session_state.w_ur
+        st.session_state.filtro_cod = st.session_state.w_cod
+        st.session_state.filtro_ano = st.session_state.w_ano
+        st.session_state.filtro_mes = st.session_state.w_mes
+
+    #- colunas de filtro
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        ops = obter_opcoes('UR')
+        st.multiselect('Unidade Regional', options=ops, key='w_ur', on_change=atualizar_filtros)
+
+    with col2:
+        ops = obter_opcoes('Codigo')
+        st.multiselect('Estação', options=ops, key='w_cod', format_func=lambda c: f"{c} - {mapa_nomes.get(c, 'N/A')}", on_change=atualizar_filtros)
+
+    with col3:
+        ops = sorted(obter_opcoes('Ano'), reverse=True)
+        st.multiselect('Ano', options=ops, key='w_ano', on_change=atualizar_filtros)
+
+    with col4:
+        ops = obter_opcoes('Mes')
+        st.multiselect('Mês', options=ops, key='w_mes', on_change=atualizar_filtros)
+    
+    #- Sincroniza os valores após a renderização para garantir que o DF use o dado atual
+    atualizar_filtros()
+
+    # --- APLICAÇÃO DOS FILTROS EM TODOS OS DFs ---
+    dfs_filtrados = []
+    for df in lista_dfs:
+        # Se um DF secundário veio nulo ou vazio originalmente, mantemos vazio sem quebrar o loop
+        if df is None or df.empty:
+            dfs_filtrados.append(pd.DataFrame())
+            continue
+
+        dff = df.copy()
+    
+        #- Filtros de UR e Codigo
+        if st.session_state.filtro_ur:
+            dff = dff[dff['UR'].isin(st.session_state.filtro_ur)]
+        if st.session_state.filtro_cod:
+            dff = dff[dff['Codigo'].isin(st.session_state.filtro_cod)]
+
+        #- Filtros de Tempo (Lógica Dual: Data vs Intervalo)
+        if st.session_state.filtro_ano or st.session_state.filtro_mes:
+            
+            #* CASO A: Balanceamento e Curvas (ValidadeInicio e ValidadeFim)
+            if 'ValidadeInicio' in dff.columns and 'Data' not in dff.columns:
+                
+                # Determinamos o range de anos e meses selecionados
+                # Se não houver seleção, usamos o mínimo/máximo possível do dado
+                ano_min = min(st.session_state.filtro_ano) if st.session_state.filtro_ano else dff['ValidadeInicio'].dt.year.min()
+                ano_max = max(st.session_state.filtro_ano) if st.session_state.filtro_ano else dff['ValidadeFim'].dt.year.max()
+                mes_min = min(st.session_state.filtro_mes) if st.session_state.filtro_mes else 1
+                mes_max = max(st.session_state.filtro_mes) if st.session_state.filtro_mes else 12
+
+                # Criamos datas artificiais de início e fim do período filtrado para comparação real
+                # Ex: Se filtrou 2023 e mês 5, o período é de 01/05/2023 até o fim de 2023 (ou fim de maio)
+                data_limite_inicio = pd.Timestamp(int(ano_min), int(mes_min), 1)
+                
+                # Data de Fim: Usamos MonthEnd para garantir o último dia correto do mês
+                # Primeiro criamos o dia 1 do mês máximo
+                data_base_fim = pd.Timestamp(int(ano_max), int(mes_max), 1)
+                # O Pandas calcula o último dia real (28, 29, 30 ou 31)
+                data_limite_fim = data_base_fim + pd.offsets.MonthEnd(0)
+
+                # --- FILTRO POR INTERSEÇÃO TOTAL ---
+                # A curva é válida se:
+                # 1. O início da curva é anterior ou igual ao fim do período filtrado
+                # 2. O fim da curva é posterior ou igual ao início do período filtrado
+                mask_intersecao = (dff['ValidadeInicio'] <= data_limite_fim) & \
+                                  (dff['ValidadeFim'] >= data_limite_inicio)
+                dff = dff[mask_intersecao]
+            
+            #* CASO B: Páginas Padrão (Coluna 'Ano' e 'Mes' existentes)
+            else:
+                if 'Ano' in dff.columns and st.session_state.filtro_ano:
+                    dff = dff[dff['Ano'].isin(st.session_state.filtro_ano)]
+                if 'Mes' in dff.columns and st.session_state.filtro_mes:
+                    dff = dff[dff['Mes'].isin(st.session_state.filtro_mes)]
+                    
+        dfs_filtrados.append(dff)
+
+    #- Aviso de dados não encontrados para a lista principal
+    if lista_dfs[0].empty:
+        st.warning("⚠️ **Nenhum dado encontrado para os filtros selecionados nesta página.**")
+
+    return dfs_filtrados if len(dfs_filtrados) > 1 else dfs_filtrados[0]
+
+#< ------------------------------------------------------------------------------------------------------------------------------
 def filtro_numerico(df, coluna, label):
     """
     Cria um filtro híbrido (Input + Slider) que se auto-ajusta
@@ -636,34 +731,128 @@ def limpar_filtros():
             del st.session_state[key]
 
 #< ------------------------------------------------------------------------------------------------------------------------------
-def menu_reset_cache():
-    """
-    Cria um botão no menu lateral para limpar o cache e recarregar os dados.
-    """
-    with st.sidebar:
-        st.subheader("Manutenção")
-        if st.button("🔄 Recarregar Base de Dados"):
-            # 1. Limpa o cache das funções decoradas com @st.cache_data
-            obter_dados_base.clear()
+#< ------------------------------------------------------------------------------------------------------------------------------
+#< ------------------------------------------------------------------------------------------------------------------------------
+
+
+#< ------------------------------------------------------------------------------------------------------------------------------
+# @st.cache_data(ttl=3600) # Expira em 3600 segundos (1 hora)
+# def obter_dados_base():
+#     """
+#     Esta função carrega os dados e os mantém em cache.
+#     Ela retorna o dicionário de DataFrames.
+#     """
+#     #- Mapeia as chaves aos IDs dos segredos (IDs dos arquivos no Google Drive)
+#     mapeamento_arquivos = {
+#         'balanceamento': st.secrets["id_balanceamento"],
+#         'cota': st.secrets["id_cota"],
+#         'cota_vazao': st.secrets["id_cota_vazao"],
+#         'cotas2L': st.secrets["id_cotas2L"],
+#         'curvas': st.secrets["id_curvas"],
+#         'medicoes': st.secrets["id_medicoes"],
+#         'passo_diario': st.secrets["id_passo_diario"],
+#         'vazao': st.secrets["id_vazao"]
+#     }
+#     # mapeamento_arquivos = {
+#     #     'balanceamento': 'balanceamento.parquet',
+#     #     'cota': 'cota.parquet',
+#     #     'medicoes': 'medicoes.parquet',
+#     #     'passo_diario': 'passo_diario.parquet',
+#     #     'vazao': 'vazao.parquet',
+#     #     'curvas': 'curvas.parquet',
+#     #     'cota_vazao': 'cota_vazao.parquet',
+#     #     'cotas2L': 'cotas2L.parquet',
+#     # }
+    
+#     datasets = {}
+#     for chave, file_id in mapeamento_arquivos.items():
+#         try:
+#             # df = carrega_parquet_drive(file_id)
+#             df = carrega_parquet_local(file_id)
+#             # df = carregaCSV_drive(file_id)
+#             # df = carregaCSV_local(file_id) 
+
+#             if df is not None:
+#                 #- 1. Padronização de Colunas
+#                 if 'EstacaoCodigo' in df.columns:
+#                     df.rename(columns={'EstacaoCodigo': 'Codigo'}, inplace=True)
+                               
+#             #- 2. Tratamento de Status
+#             if 'Status' in df.columns:
+#                 mapa_status = {
+#                     0: "Em branco",
+#                     1: "1: Validado",
+#                     2: "2: * (Estimado)",
+#                     3: "3: ? (Duvidoso)",
+#                     4: "4: # (Régua seca)",
+#                     5: "5: ! (Régua coberta)",
+#                     6: "6: @ (Rio seco)",
+#                     7: "7: / (Rio cortado)"
+#                     }
+#                 #- Converte para numérico (caso venha como string ou float do CSV)
+#                 df['Status'] = pd.to_numeric(df['Status'], errors='coerce')
+                
+#                 #- Mapeia os valores e preenche o que sobrar (nulos) com "Em branco"
+#                 df['Status'] = df['Status'].map(mapa_status).fillna("Em branco")
+
+#             #- Grava no session_state
+#             datasets[chave] = df
+
+#         except Exception as e:
+#             st.error(f"Erro ao carregar {chave}: {e}")
+
+#     return datasets
+
+#< ------------------------------------------------------------------------------------------------------------------------------
+# def verificar_e_carregar_todas_as_tabelas():
+#     """
+#     Garante que TODAS as tabelas essenciais estejam no session_state.
+#     Se faltar qualquer uma, recarrega o pacote completo.
+#     """
+#     #- Lista de chaves que DEVEM existir no session_state
+#     chaves_essenciais = [
+#         'balanceamento', 'cota', 'medicoes', 
+#         'passo_diario', 'cota_vazao', 'cotas2L',
+#         'vazao', 'curvas'
+#     ]
+    
+#     #- Verifica se alguma chave está faltando ou está vazia (None)
+#     precisa_carregar = any(
+#         chave not in st.session_state or st.session_state[chave] is None 
+#         for chave in chaves_essenciais
+#     )
+
+#     if precisa_carregar:
+#         #- O spinner mostra uma animação e a mensagem enquanto a função roda
+#         with st.spinner("Carregando base de dados..."):
+#             dados = obter_dados_base()
+#             #- O dicionário 'dados' contém as chaves do mapeamento_arquivos
+#             for chave, df in dados.items():
+#                 st.session_state[chave] = df
+
+#< ------------------------------------------------------------------------------------------------------------------------------
+# def menu_reset_cache():
+#     """
+#     Cria um botão no menu lateral para limpar o cache e recarregar os dados.
+#     """
+#     with st.sidebar:
+#         st.subheader("Manutenção")
+#         if st.button("🔄 Recarregar Base de Dados"):
+#             # 1. Limpa o cache das funções decoradas com @st.cache_data
+#             obter_dados_base.clear()
             
-            # 2. Limpa as variáveis de dados no session_state para forçar a recarga
-            chaves_para_limpar = [
-                'balanceamento', 'cota', 'medicoes', 
-                # 'passo_diario', 'cota_vazao', 'cotas2L',
-                'vazao', 'curvas'
-            ]
-            for chave in chaves_para_limpar:
-                if chave in st.session_state:
-                    del st.session_state[chave]
+#             # 2. Limpa as variáveis de dados no session_state para forçar a recarga
+#             chaves_para_limpar = [
+#                 'balanceamento', 'cota', 'medicoes', 
+#                 'passo_diario', 'cota_vazao', 'cotas2L',
+#                 'vazao', 'curvas'
+#             ]
+#             for chave in chaves_para_limpar:
+#                 if chave in st.session_state:
+#                     del st.session_state[chave]
             
-            # 3. Notifica o usuário e reinicia o app
-            st.success("Cache limpo! Recarregando dados...")
-            st.rerun()
-
-#< ------------------------------------------------------------------------------------------------------------------------------
-#< ------------------------------------------------------------------------------------------------------------------------------
-#< ------------------------------------------------------------------------------------------------------------------------------
-
-
+#             # 3. Notifica o usuário e reinicia o app
+#             st.success("Cache limpo! Recarregando dados...")
+#             st.rerun()
 
 

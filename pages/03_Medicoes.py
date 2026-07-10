@@ -17,11 +17,15 @@ import funcoes as fc
 #- Configurações iniciais da página
 fc.configuracoes_iniciais()
 
-#- Carrega os dados necessários para essa página
-fc.gerenciar_pagina_e_carregar("03_Medicoes", ["medicoes", "curvas"])
-
 #- Título e descrição da página
 st.subheader("Medição e desvio em relação à curva-chave que está no banco SQL")
+st.markdown(""" 
+             :yellow[✍️Atenção]: medições com desvio superior a 20% estão destacadas em vermelho.
+             """)
+st.divider() # Linha visual para separar das tabelas
+
+#- Carrega os dados necessários para essa página
+fc.gerenciar_pagina_e_carregar("03_Medicoes", ["medicoes", "curvas"])
 
 #- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
 if 'medicoes' not in st.session_state or 'curvas' not in st.session_state:

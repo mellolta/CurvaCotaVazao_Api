@@ -15,11 +15,16 @@ import funcoes as fc
 #- Configurações iniciais da página
 fc.configuracoes_iniciais()
 
-#- Carrega os dados necessários para essa página
-fc.gerenciar_pagina_e_carregar("01_Cota", ["cota"])
-
 #- Título e descrição da página
 st.subheader("Cota fora do intervalo da curva chave que está no banco SQL")
+st.markdown("""
+             :grey[🧐 Exibe as estações cujas cotas não estão dentro dos limites de abrangência da curva chave para a data correspondente]  
+             :yellow[✍️Ação necessária]: revisar a cota do dia ou atualizar a curva-chave no banco SQL
+             """)
+st.divider() # Linha visual para separar das tabelas
+
+#- Carrega os dados necessários para essa página
+fc.gerenciar_pagina_e_carregar("01_Cota", ["cota"])
 
 #- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
 if 'cota' not in st.session_state:

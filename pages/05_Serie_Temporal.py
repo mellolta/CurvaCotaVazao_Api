@@ -19,11 +19,11 @@ import plotly.graph_objects as go  # Adicionado para gráficos com múltiplas ca
 #- Configurações iniciais da página
 fc.configuracoes_iniciais()
 
-#- Carrega os dados necessários para essa página
-fc.gerenciar_pagina_e_carregar("05_Serie_temporal", ["passo_diario", "cota_vazao", "cotas2L", "medicoes"])
-
 #- Título e descrição da página
-st.subheader("Filtros para as séries temporais")
+st.subheader("Série temporal e análise comparativa dos valores de cota e a vazão com o dia anterior")
+
+#- Carrega os dados necessários para essa página
+fc.gerenciar_pagina_e_carregar("05_Serie_temporal", ["cota_vazao", "passo_diario", "cotas2L", "medicoes"])
 
 #- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
 if 'passo_diario' not in st.session_state or \
@@ -40,7 +40,7 @@ cotas2L = st.session_state['cotas2L']
 medicoes = st.session_state['medicoes']
 
 #- Chama a função que retorna o dataframe já filtrado
-df_pd_filtrado, df_cv_filtrado, df_c2l_filtrado, df_medicoes_filtrado = fc.menu_filtros_multi([passo_diario, cota_vazao, cotas2L, medicoes])
+df_cv_filtrado, df_pd_filtrado, df_c2l_filtrado, df_medicoes_filtrado = fc.menu_filtros_multi([cota_vazao, passo_diario, cotas2L, medicoes])
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Botões para limpar filtros e exibir resultado
@@ -55,7 +55,11 @@ c_btn1.button("Limpar Filtros",             # legenda do botão
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #- Se o DF estiver vazio, paramos a execução aqui para não dar erro nas métricas abaixo
-if df_pd_filtrado.empty or df_cv_filtrado.empty:
+# if df_pd_filtrado.empty or df_cv_filtrado.empty:
+#     st.stop()
+#- Modificado: O script só deve parar se os dados de Cota/Vazão (referência do gráfico) sumirem por completo.
+if df_cv_filtrado.empty:
+    st.warning("⚠️ O DataFrame de cota e vazão está vazio para este filtro. Selecione outros parâmetros.")
     st.stop()
 
 #- Aplicação do filtro no DataFrame da página usando o que a função retornou
@@ -244,6 +248,19 @@ else:
         st.markdown("---")  # Linha separadora
 
 # < ------------------------------------------------------------------------------------------------------------------------------
+#$ Exibe o DataFrame resultante (Tabela auxiliar)
+#- Título da tabela
+st.subheader("📋 Descontinuidade no passo das cotas e vazões")
+
+#- Descrição do DataFrame exibido
+if exibe_passo_diario.empty:
+    st.info("💡 Não existem dados de descontiuidade no passo diário para o período/filtro selecionado.")
+else:
+    st.markdown("Filtros ativos para diferenças percentuais acima de de 50% (e absolutas maiores que 10).")
+    st.markdown(f"**Número de registros:** {len(exibe_passo_diario)}")
+    st.markdown("<br>", unsafe_allow_html=True) #- quebra de linha usando HTML para espaçamento
+
+# < ------------------------------------------------------------------------------------------------------------------------------
 #$ Limite de segurança para exibição com formatação condicional
 #- Limite de segurança para a exibição das linhas com formatação condicional (Styler)
 LIMITE_ESTILO = 1000
@@ -280,15 +297,6 @@ df_estilizado = df_para_estilizar.style.format({
 .map(colorir_desvio, subset=['DifPer_cota','DifPer_vazao']) # <--- Aplica a cor apenas na coluna
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ Exibe o DataFrame resultante (Tabela auxiliar)
-
-#- Título da tabela
-st.subheader("📋 Descontinuidade no passo das cotas e vazões")
-st.markdown("Filtros ativos para diferenças percentuais acima de de 50% (e absolutas maiores que 10).")
-
-#- Descrição do DataFrame exibido
-st.markdown(f"**Número de registros:** {len(exibe_passo_diario)}")
-st.markdown("<br>", unsafe_allow_html=True) #- quebra de linha usando HTML para espaçamento
 
 #- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner
 st.dataframe(

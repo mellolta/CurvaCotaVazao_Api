@@ -18,11 +18,15 @@ import funcoes as fc
 #- Configurações iniciais da página
 fc.configuracoes_iniciais()
 
-#- Carrega os dados necessários para essa página
-fc.gerenciar_pagina_e_carregar("04_Balanceamento", ["balanceamento"])
-
 #- Título e descrição da página
 st.subheader("Balanceamento das medições por período de validade da curva-chave no banco SQL")
+st.markdown("""
+             :yellow[✍️Atenção]: curvas com desvio superior a 20% ou balanceamento das medições superior a 30%-70% estão destacadas em vermelho.
+             """)
+st.divider() # Linha visual para separar das tabelas
+
+#- Carrega os dados necessários para essa página
+fc.gerenciar_pagina_e_carregar("04_Balanceamento", ["balanceamento"])
 
 #- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
 if 'balanceamento' not in st.session_state:

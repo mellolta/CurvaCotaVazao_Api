@@ -15,11 +15,16 @@ import funcoes as fc
 #- Configurações iniciais da página
 fc.configuracoes_iniciais()
 
-#- Carrega os dados necessários para essa página
-fc.gerenciar_pagina_e_carregar("02_Vazao", ["vazao"])
-
 #- Título e descrição da página
 st.subheader("Vazão do banco SQL X Vazão calculada pela curva-chave (Qcalc)")
+st.markdown("""
+             :grey[🧐 Exibe as estações cuja vazão do banco SQL se difere da vazão calculada pela curva-chave (Qcalc) para a data correspondente]  
+             :yellow[✍️Ação necessária]: reprocessar a vazão no banco SQL para o período correspondente.
+             """)
+st.divider() # Linha visual para separar das tabelas
+
+#- Carrega os dados necessários para essa página
+fc.gerenciar_pagina_e_carregar("02_Vazao", ["vazao"])
 
 #- Verifica se os dados foram carregados na página principal, caso contrário, exibe uma mensagem de erro e interrompe a execução.
 if 'vazao' not in st.session_state:
