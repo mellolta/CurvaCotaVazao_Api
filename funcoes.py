@@ -80,8 +80,8 @@ def obter_tabela_por_chave(chave):
     
     try:
         # Carrega apenas o arquivo necessário
-        # df = carregaCSV_drive(file_id)
-        df = carrega_parquet_drive(file_id)
+        df = carregaCSV_drive(file_id)
+        # df = carrega_parquet_drive(file_id)
         # df = carrega_parquet_local(file_id)
         
         if df is not None:
