@@ -44,11 +44,11 @@ def configuracoes_iniciais():
 MAPEAMENTO_ARQUIVOS = {
     'balanceamento': st.secrets["id_balanceamento"],
     'cota': st.secrets["id_cota"],
-    # 'cota_vazao': st.secrets["id_cota_vazao"],
-    # 'cotas2L': st.secrets["id_cotas2L"],
+    'cota_vazao': st.secrets["id_cota_vazao"],
+    'cotas2L': st.secrets["id_cotas2L"],
     'curvas': st.secrets["id_curvas"],
     'medicoes': st.secrets["id_medicoes"],
-    # 'passo_diario': st.secrets["id_passo_diario"],
+    'passo_diario': st.secrets["id_passo_diario"],
     'vazao': st.secrets["id_vazao"]
 }
 
@@ -80,8 +80,8 @@ def obter_tabela_por_chave(chave):
     
     try:
         # Carrega apenas o arquivo necessário
-        df = carregaCSV_drive(file_id)
-        # df = carrega_parquet_drive(file_id)
+        # df = carregaCSV_drive(file_id)
+        df = carrega_parquet_drive(file_id)
         # df = carrega_parquet_local(file_id)
         
         if df is not None:
@@ -98,6 +98,11 @@ def obter_tabela_por_chave(chave):
                 }
                 df['Status'] = pd.to_numeric(df['Status'], errors='coerce')
                 df['Status'] = df['Status'].map(mapa_status).fillna("Em branco")
+
+            # 3. Reduz drasticamente o uso de memória para colunas de texto repetitivo
+            for col in ['UR', 'Nome', 'Status']:
+                if col in df.columns:
+                    df[col] = df[col].astype('category')
             
             return df
             
@@ -118,11 +123,11 @@ def gerenciar_pagina_e_carregar(nome_pagina, chaves_da_pagina):
         chaves_para_limpar = [
             'balanceamento', 
             'cota', 
-            # 'cota_vazao', 
-            # 'cotas2L',
+            'cota_vazao', 
+            'cotas2L',
             'curvas', 
             'medicoes', 
-            # 'passo_diario', 
+            'passo_diario', 
             'vazao'
         ]
 
@@ -236,6 +241,11 @@ def carrega_parquet_drive(file_id):
         for col in colunas_data:
             if col in df.columns:
                 df[col] = pd.to_datetime(df[col], errors='coerce')
+
+        if 'Cota' in df.columns:
+            df['Cota'] = pd.to_numeric(df['Cota'], downcast='float')
+        if 'Codigo' in df.columns:
+            df['Codigo'] = pd.to_numeric(df['Codigo'], downcast='integer')
 
         return df
 

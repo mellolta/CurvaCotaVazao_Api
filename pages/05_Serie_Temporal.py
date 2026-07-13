@@ -40,7 +40,8 @@ cotas2L = st.session_state['cotas2L']
 medicoes = st.session_state['medicoes']
 
 #- Chama a função que retorna o dataframe já filtrado
-df_cv_filtrado, df_pd_filtrado, df_c2l_filtrado, df_medicoes_filtrado = fc.menu_filtros_multi([cota_vazao, passo_diario, cotas2L, medicoes])
+# df_cv_filtrado, df_pd_filtrado, df_c2l_filtrado, df_medicoes_filtrado = fc.menu_filtros_multi([cota_vazao, passo_diario, cotas2L, medicoes])
+exibe_cota_vazao, exibe_passo_diario, exibe_cotas2L, exibe_medicoes = fc.menu_filtros_multi([cota_vazao, passo_diario, cotas2L, medicoes])
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Botões para limpar filtros e exibir resultado
@@ -58,15 +59,15 @@ c_btn1.button("Limpar Filtros",             # legenda do botão
 # if df_pd_filtrado.empty or df_cv_filtrado.empty:
 #     st.stop()
 #- Modificado: O script só deve parar se os dados de Cota/Vazão (referência do gráfico) sumirem por completo.
-if df_cv_filtrado.empty:
+if exibe_cota_vazao.empty:
     st.warning("⚠️ O DataFrame de cota e vazão está vazio para este filtro. Selecione outros parâmetros.")
     st.stop()
 
 #- Aplicação do filtro no DataFrame da página usando o que a função retornou
-exibe_passo_diario = df_pd_filtrado.copy()
-exibe_cota_vazao = df_cv_filtrado.copy()
-exibe_cotas2L = df_c2l_filtrado.copy()
-exibe_medicoes = df_medicoes_filtrado.copy()
+# exibe_passo_diario = df_pd_filtrado.copy()
+# exibe_cota_vazao = df_cv_filtrado.copy()
+# exibe_cotas2L = df_c2l_filtrado.copy()
+# exibe_medicoes = df_medicoes_filtrado.copy()
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 def adicionar_data_hora(df):
@@ -85,7 +86,7 @@ exibe_cota_vazao = adicionar_data_hora(exibe_cota_vazao)
 exibe_medicoes = adicionar_data_hora(exibe_medicoes)
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#$ GRÁFICO DE SÉRIE TEMPORAL - COTA VS DATA (usando df_cv_filtrado)
+#$ GRÁFICO DE SÉRIE TEMPORAL - COTA VS DATA (usando exibe_cota_vazao)
 
 #- Verifica quantas estações únicas estão selecionadas no filtro
 estacoes_selecionadas = exibe_cota_vazao['Nome'].nunique()
@@ -98,7 +99,8 @@ if estacoes_selecionadas <= 3 and estacoes_selecionadas > 0:
     mostrar_cotas2L = st.checkbox("📊 Mostrar Cota 2 Leituras", value=True)
     
     #- Prepara os dados para o gráfico
-    df_grafico_cv = exibe_cota_vazao.copy()
+    # df_grafico_cv = exibe_cota_vazao.copy()
+    df_grafico_cv = exibe_cota_vazao
     df_grafico_cv = df_grafico_cv.sort_values('Data_Hora')
     
     #- Cria o gráfico base com plotly.graph_objects para melhor controle
@@ -132,7 +134,8 @@ if estacoes_selecionadas <= 3 and estacoes_selecionadas > 0:
     
     # Adiciona Cota 2 Leituras (apenas pontos) se o checkbox estiver marcado e houver dados
     if mostrar_cotas2L and not exibe_cotas2L.empty:
-        df_grafico_c2l = exibe_cotas2L.copy()
+        # df_grafico_c2l = exibe_cotas2L.copy()
+        df_grafico_c2l = exibe_cotas2L
         df_grafico_c2l = df_grafico_c2l.sort_values('Data_Hora')
         
         # Para cada estação, adiciona os pontos de Cota 2 Leituras
@@ -163,7 +166,8 @@ if estacoes_selecionadas <= 3 and estacoes_selecionadas > 0:
     
     #- Adiciona Medições (apenas pontos) se houver dados
     if not exibe_medicoes.empty:
-        df_grafico_med = exibe_medicoes.copy()
+        # df_grafico_med = exibe_medicoes.copy()
+        df_grafico_med = exibe_medicoes
         df_grafico_med = df_grafico_med.sort_values('Data_Hora')
         
         #- Para cada estação, adiciona os pontos de Medições
