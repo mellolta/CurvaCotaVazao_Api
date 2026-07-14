@@ -40,7 +40,6 @@ cotas2L = st.session_state['cotas2L']
 medicoes = st.session_state['medicoes']
 
 #- Chama a função que retorna o dataframe já filtrado
-# df_cv_filtrado, df_pd_filtrado, df_c2l_filtrado, df_medicoes_filtrado = fc.menu_filtros_multi([cota_vazao, passo_diario, cotas2L, medicoes])
 exibe_cota_vazao, exibe_passo_diario, exibe_cotas2L, exibe_medicoes = fc.menu_filtros_multi([cota_vazao, passo_diario, cotas2L, medicoes])
 
 # < ------------------------------------------------------------------------------------------------------------------------------
@@ -55,19 +54,10 @@ c_btn1.button("Limpar Filtros",             # legenda do botão
               type= "secondary")            # estilo do botão (opcional)
 
 # < ------------------------------------------------------------------------------------------------------------------------------
-#- Se o DF estiver vazio, paramos a execução aqui para não dar erro nas métricas abaixo
-# if df_pd_filtrado.empty or df_cv_filtrado.empty:
-#     st.stop()
 #- Modificado: O script só deve parar se os dados de Cota/Vazão (referência do gráfico) sumirem por completo.
 if exibe_cota_vazao.empty:
     st.warning("⚠️ O DataFrame de cota e vazão está vazio para este filtro. Selecione outros parâmetros.")
     st.stop()
-
-#- Aplicação do filtro no DataFrame da página usando o que a função retornou
-# exibe_passo_diario = df_pd_filtrado.copy()
-# exibe_cota_vazao = df_cv_filtrado.copy()
-# exibe_cotas2L = df_c2l_filtrado.copy()
-# exibe_medicoes = df_medicoes_filtrado.copy()
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 def adicionar_data_hora(df):
@@ -333,10 +323,10 @@ st.dataframe(
             help="Diferença percentual entre a cota do dia analisado e a do dia anterior"), 
         "Diferença_cota": st.column_config.NumberColumn("Diferença Cota (cm)", format="%d", 
             help="Diferença de cota entre o dia analisado e o dia anterior"),
-        "Ano": st.column_config.NumberColumn("Ano", format="%d", 
-                                             help="Ano da leitura"),
-        "Mes": st.column_config.NumberColumn("Mês", format="%d", 
-                                             help="Mês da leitura"),
+        # "Ano": st.column_config.NumberColumn("Ano", format="%d", 
+        #                                      help="Ano da leitura"),
+        # "Mes": st.column_config.NumberColumn("Mês", format="%d", 
+        #                                      help="Mês da leitura"),
         # Notas: Quando usamos .style.format, o 'format' do column_config 
         # pode ser omitido para as colunas numéricas estilizadas.
     }

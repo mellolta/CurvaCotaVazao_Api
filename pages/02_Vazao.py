@@ -191,10 +191,6 @@ st.dataframe(
             "Limite Sup. (cm)", 
             format="%d", 
             help="Limite superior da curva chave"),
-        "Ano": st.column_config.NumberColumn("Ano", format="%d", 
-                                             help="Ano da leitura"),
-        "Mes": st.column_config.NumberColumn("Mês", format="%d", 
-                                             help="Mês da leitura"),
         # Notas: Quando usamos .style.format, o 'format' do column_config 
         # pode ser omitido para as colunas numéricas estilizadas.
     }

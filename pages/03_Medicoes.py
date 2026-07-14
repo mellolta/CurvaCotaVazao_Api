@@ -122,24 +122,68 @@ exibe_medicoes = exibe_medicoes.drop(columns=['Desvio_Abs'])
 # --- BLOCO DE MÉTRICAS --- 
 
 if not exibe_medicoes.empty:
-    st.divider() # Linha visual para separar das tabelas
+    # 1. Injeta CSS para reduzir as margens das colunas e das métricas
+    st.markdown(
+        """
+        <style>
+            /* Reduz a margem superior e inferior do bloco de colunas */
+            [data-testid="stHorizontalBlock"] {
+                margin-top: -10px !important;
+                margin-bottom: -10px !important;
+                gap: 0px !important;
+            }
+            /* Reduz o espaçamento interno (padding) das métricas */
+            [data-testid="stMetric"] {
+                padding-top: 0px !important;
+                padding-bottom: 0px !important;
+            }
+            /* Ajusta o espaçamento do título do Resumo */
+            .resumo-title {
+                margin-bottom: -5px !important;
+                margin-top: 0px !important;
+            }
+            /* 2. Redução do Tamanho da Fonte dos Metric Cards */
+            
+            /* Diminui o Título (Ex: "Total de Registros") */
+            [data-testid="stMetricLabel"] p {
+                font-size: 0.85rem !important; /* Ajuste este valor como preferir */
+            }
+            
+            /* Diminui o Valor Principal (Ex: "150") */
+            [data-testid="stMetricValue"] {
+                font-size: 1.6rem !important;  /* Padrão do Streamlit costuma ser bem maior */
+            }
 
-    st.markdown("### Resumo")
+            /* Opcional: Se usar variação de delta (setinhas de alta/baixa) */
+            [data-testid="stMetricDelta"] {
+                font-size: 0.8rem !important;
+            }
+        </style>
+        """,
+        unsafe_allow_html=True
+    )
+
+    # 2. Divisor customizado com menos espaço (substituindo o st.divider())
+    st.markdown("<hr style='margin: 8px 0;'>", unsafe_allow_html=True)
+
+    # Título usando HTML para podermos controlar a margem exata via CSS acima
+    st.markdown("<h5 class='resumo-title'>Resumo</h3>", unsafe_allow_html=True)
+    
     m1, m2, m3, m4 = st.columns(4)
     
-    # Cálculos
+    #- Cálculos
     desvio_medio = exibe_medicoes['Desvio'].mean()
     maior_erro = exibe_medicoes['Desvio'].abs().max()
-    # Conta quantos registros estão com desvio acima de 20% (positivo ou negativo)
     qtd_critica = len(exibe_medicoes[exibe_medicoes['Desvio'].abs() > 20])
 
-    # Exibição dos Metric Cards
+    #- Exibição dos Metric Cards
     m1.metric("Total de Registros", f"{len(exibe_medicoes)}")
     m2.metric("Desvio Médio", f"{desvio_medio:.2f}")
     m3.metric("Maior Desvio Encontrado", f"{maior_erro:.2f}")
     m4.metric("Alertas (> 20%)", f"{qtd_critica} registros")
     
-    st.divider() # Linha visual para separar das tabelas
+    # Segundo divisor customizado compacto
+    st.markdown("<hr style='margin: 8px 0;'>", unsafe_allow_html=True)
 
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Limite de segurança para exibição com formatação condicional
@@ -182,67 +226,64 @@ df_estilizado = df_para_estilizar.style.format({
 #$ Exibe o DataFrame resultante com a formatação applied
 
 #- Exibe o DataFrame ocultando o índice e usando a largura total do contêiner
-st.dataframe(
-    df_estilizado,
-    hide_index=True,
-    width="stretch",
-    column_config={
-        "UR": st.column_config.Column("UR", help="Unidade Regional"),
-        "Codigo": st.column_config.NumberColumn("Código", format="%d", 
-                                                help="Código da estação."),
-        "Nome": st.column_config.Column("Nome", 
-                                        help="Nome da estação"),
-        "Data": st.column_config.DatetimeColumn(
-            "Data", format="DD/MM/YYYY", 
-            help="Data da medição"),
-        "NumMed": st.column_config.NumberColumn(
-            "Nº Medição", format="%d",
-            help="Número da medição de descarga"
+with st.expander("Medições de Descarga Líquida (Vigência filtrada)"):
+    st.dataframe(
+        df_estilizado,
+        hide_index=True,
+        width="stretch",
+        column_config={
+            "UR": st.column_config.Column("UR", help="Unidade Regional"),
+            "Codigo": st.column_config.NumberColumn("Código", format="%d", 
+                                                    help="Código da estação."),
+            "Nome": st.column_config.Column("Nome", 
+                                            help="Nome da estação"),
+            "Data": st.column_config.DatetimeColumn(
+                "Data", format="DD/MM/YYYY", 
+                help="Data da medição"),
+            "NumMed": st.column_config.NumberColumn(
+                "Nº Medição", format="%d",
+                help="Número da medição de descarga"
+                ),
+            "Cota": st.column_config.NumberColumn(
+                "Cota (cm)", format="%d",
+                help="Nível d'água observado no momento da medição."
+                ),
+            "Vazao": st.column_config.NumberColumn(
+                "Vazão (m³/s)", 
+                help="Vazão medida em campo."
+                ),
+            "Qcalc": st.column_config.NumberColumn(
+                "QCalc (m³/s)", 
+                help="Vazão calculada através da equação da curva chave vigente para a cota lida."
             ),
-        "Cota": st.column_config.NumberColumn(
-            "Cota (cm)", format="%d",
-            help="Nível d'água observado no momento da medição."
+            "Desvio": st.column_config.NumberColumn("Desvio (m³/s)", 
+                help="Diferença entre vazão calculada pela curva chave (Qcalc) e a vazão que está no banco SQL." 
+                ),
+            "Curva": st.column_config.NumberColumn(
+                "Nº Curva", format="%d", 
+                help="Numeração da curva chave associada a esta estação."
             ),
-        "Vazao": st.column_config.NumberColumn(
-            "Vazão (m³/s)", 
-            help="Vazão medida em campo."
-            ),
-        "Qcalc": st.column_config.NumberColumn(
-            "QCalc (m³/s)", 
-            help="Vazão calculada através da equação da curva chave vigente para a cota lida."
-        ),
-        "Desvio": st.column_config.NumberColumn("Desvio (m³/s)", 
-            help="Diferença entre vazão calculada pela curva chave (Qcalc) e a vazão que está no banco SQL." 
-            ),
-        "Curva": st.column_config.NumberColumn(
-            "Nº Curva", format="%d", 
-            help="Numeração da curva chave associada a esta estação."
-        ),
-        "ValidadeInicio": st.column_config.DatetimeColumn(
-            "Validade Início", format="DD/MM/YYYY",
-            help="Início da validade da curva chave"
-            ),
-        "ValidadeFim": st.column_config.DatetimeColumn(
-            "Validade Fim", format="DD/MM/YYYY",
-            help="Fim da validade da curva chave"
-            ),
+            "ValidadeInicio": st.column_config.DatetimeColumn(
+                "Validade Início", format="DD/MM/YYYY",
+                help="Início da validade da curva chave"
+                ),
+            "ValidadeFim": st.column_config.DatetimeColumn(
+                "Validade Fim", format="DD/MM/YYYY",
+                help="Fim da validade da curva chave"
+                ),
 
-        "Lim_inf": st.column_config.NumberColumn(
-            "Limite Inf. (cm)", format="%d", 
-            help="Limite inferior da curva chave"
-            ),
-        "Lim_sup": st.column_config.NumberColumn(
-            "Limite Sup. (cm)", format="%d", 
-            help="Limite superior da curva chave"
-            ),
-        "medidorvazao": st.column_config.NumberColumn("Medidor Vazão", format="%d", 
-            help="Equipamento usado para a medição de descarga"),
-        "Ano": st.column_config.NumberColumn("Ano", format="%d", 
-                                             help="Ano da leitura"),
-        "Mes": st.column_config.NumberColumn("Mês", format="%d", 
-                                             help="Mês da leitura"),
-    }
-)
+            "Lim_inf": st.column_config.NumberColumn(
+                "Limite Inf. (cm)", format="%d", 
+                help="Limite inferior da curva chave"
+                ),
+            "Lim_sup": st.column_config.NumberColumn(
+                "Limite Sup. (cm)", format="%d", 
+                help="Limite superior da curva chave"
+                ),
+            "medidorvazao": st.column_config.NumberColumn("Medidor Vazão", format="%d", 
+                help="Equipamento usado para a medição de descarga"),
+        }
+    )
 
 #- Exibição de Alerta
 if aviso_limite:
@@ -286,7 +327,7 @@ config_legendas = [
 
 # --- 4. CONSTRUÇÃO DO PLOTLY (COTA VS VAZÃO) ---
 
-# Checkboxes para alternar as escalas logarítmicas
+#- Checkboxes para alternar as escalas logarítmicas
 st.markdown("### Configurações de Escala do Gráfico Cota vs Vazão")
 col_log1, col_log2 = st.columns(2)
 with col_log1:
@@ -294,7 +335,7 @@ with col_log1:
 with col_log2:
     log_vazao = st.checkbox("Log Vazão (Eixo X)")
 
-# Criando a lista de cores
+#- Criando a lista de cores
 cores_cota_vazao = []
 for desvio in df_med_filtrado['Desvio']:
     mod_desvio = abs(desvio)
@@ -329,7 +370,7 @@ if not df_med_filtrado.empty:
         hovertemplate="<b>Data:</b> %{text}<br><b>Vazão:</b> %{x:.2f}<br><b>Cota:</b> %{y:.0f}<br><b>Desvio:</b> %{customdata:.1f}%<extra></extra>"
     ))
 
-    # Adiciona as legendas das faixas de desvio no gráfico de Cota vs Vazão
+    #- Adiciona as legendas das faixas de desvio no gráfico de Cota vs Vazão
     for item in config_legendas:
         fig.add_trace(go.Scatter(
             x=[None], y=[None],     # Pontos invisíveis (não aparecem no gráfico)
@@ -355,7 +396,7 @@ if not df_curvas_filtrado.empty:
 mapa_nomes = st.session_state['medicoes'].drop_duplicates('Codigo').set_index('Codigo')['Nome'].to_dict()
 nome_estacao = mapa_nomes.get(estacoes_sel[0], "Não encontrada")
 
-# Define dinamicamente o tipo dos eixos com base nos checkboxes do Requisito 2
+#- Define dinamicamente o tipo dos eixos com base nos checkboxes do Requisito 2
 tipo_eixo_x = "log" if log_vazao else "linear"
 tipo_eixo_y = "log" if log_cota else "linear"
 
@@ -477,7 +518,7 @@ fig_desvio.update_layout(
 st.plotly_chart(fig_desvio, width='stretch')
 
 
-# Tabela de conferência com Tooltips
+#- Tabela de conferência com Tooltips
 with st.expander("Parâmetros das Curvas (Vigência filtrada)"):
     st.dataframe(
         df_curvas_filtrado[['Curva', 'ValidadeInicio', 'ValidadeFim', 'Tramo', 'TramoCotaMax', 'TramoCotaMin', 'CoefA', 'CoefH0', 'CoefN']], 
