@@ -214,9 +214,10 @@ def colorir_desvio(valor):
 #< Isso mantém os dados como números (para ordenar), mas exibe com vírgula e ponto
 df_estilizado = df_para_estilizar.style.format({
     'Vazao': "{:.3f}",
-    'AreaMolh': "{:.3f}",
-    'Largura': "{:.3f}",
-    'Prof': "{:.3f}",
+    'AreaMolh': "{:.2f}",
+    'VelMedia': "{:.2f}",
+    'Largura': "{:.2f}",
+    'Prof': "{:.2f}",
     'Qcalc': "{:.3f}",
     'Desvio': "{:.2f}",
 }, decimal=',', thousands='.') \
@@ -234,7 +235,7 @@ with st.expander("Medições de Descarga Líquida (Vigência filtrada)"):
         column_config={
             "UR": st.column_config.Column("UR", help="Unidade Regional"),
             "Codigo": st.column_config.NumberColumn("Código", format="%d", 
-                                                    help="Código da estação."),
+                                                    help="Código da estação"),
             "Nome": st.column_config.Column("Nome", 
                                             help="Nome da estação"),
             "Data": st.column_config.DatetimeColumn(
@@ -246,22 +247,38 @@ with st.expander("Medições de Descarga Líquida (Vigência filtrada)"):
                 ),
             "Cota": st.column_config.NumberColumn(
                 "Cota (cm)", format="%d",
-                help="Nível d'água observado no momento da medição."
+                help="Nível d'água observado no momento da medição"
                 ),
             "Vazao": st.column_config.NumberColumn(
                 "Vazão (m³/s)", 
                 help="Vazão medida em campo."
                 ),
+            "AreaMolh": st.column_config.NumberColumn(
+                "Área Molh (m²)", 
+                help="Área Molhada da seção de medição"
+            ),
+            "Largura": st.column_config.NumberColumn(
+                "Largura (m)", 
+                help="Profundidade da seção de medição"
+            ),
+            "VelMedia": st.column_config.NumberColumn(
+                "VelMédia (m/s)", 
+                help="Vel. Média da água (m/s)"
+            ),
+            "Prof": st.column_config.NumberColumn(
+                "Prof (m)", 
+                help="Profundidade da seção de medição"
+            ),
             "Qcalc": st.column_config.NumberColumn(
                 "QCalc (m³/s)", 
-                help="Vazão calculada através da equação da curva chave vigente para a cota lida."
+                help="Vazão calculada através da equação da curva chave vigente para a cota lida"
             ),
-            "Desvio": st.column_config.NumberColumn("Desvio (m³/s)", 
-                help="Diferença entre vazão calculada pela curva chave (Qcalc) e a vazão que está no banco SQL." 
+            "Desvio": st.column_config.NumberColumn("Desvio (%)", 
+                help="Diferença entre vazão calculada pela curva chave (Qcalc) e a vazão que está no banco SQL" 
                 ),
             "Curva": st.column_config.NumberColumn(
                 "Nº Curva", format="%d", 
-                help="Numeração da curva chave associada a esta estação."
+                help="Numeração da curva chave associada a esta estação"
             ),
             "ValidadeInicio": st.column_config.DatetimeColumn(
                 "Validade Início", format="DD/MM/YYYY",
