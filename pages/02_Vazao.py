@@ -176,7 +176,7 @@ st.dataframe(
             help="Vazão presente no banco SQL."),
         "Qcalc": st.column_config.NumberColumn("QCalc (m³/s)", 
             help="Vazão calculada através da equação da curva chave vigente para a cota lida."),
-        "Desvio": st.column_config.NumberColumn("Desvio (m³/s)", 
+        "Desvio": st.column_config.NumberColumn("Desvio (%)", 
             help="Diferença entre vazão calculada pela curva chave (Qcalc) e a vazão que está no banco SQL."),
         "ValidadeInicio": st.column_config.DatetimeColumn("Validade Início", 
             format="DD/MM/YYYY", 
