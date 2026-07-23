@@ -29,10 +29,10 @@ st.markdown("""<h1 style='text-align: center; color: blue;'
 st.markdown(""":blue[Selecione a página na aba lateral conforme a descrição abaixo:]""")
 
 st.markdown("""
-            :green[Cota] :grey[: Exibe as estações cujas cotas não estão dentro dos limites de abrangência da curva chave para a data correspondente]  
+            :green[Cota fora da curva] :grey[: Exibe as estações cujas cotas não estão dentro dos limites de abrangência da curva chave para a data correspondente]  
             :yellow[==== >>>> Ação necessária]: revisar a cota do dia ou atualizar a curva-chave no banco SQL.  
 
-            :green[Vazao] :grey[: Exibe as estações cuja vazão do banco SQL se difere da vazão calculada pela curva-chave (Qcalc) para a data correspondente]  
+            :green[Desvio da vazao] :grey[: Exibe as estações cuja vazão do banco SQL se difere da vazão calculada pela curva-chave (Qcalc) para a data correspondente]  
             :yellow[==== >>>> Ação necessária]: reprocessar a vazão no banco SQL para o período correspondente.  
 
             :green[Medicoes] :grey[: Resultado de cada medição com o desvio em relação a vazão calculada pela curva chave que está no banco SQL.]  

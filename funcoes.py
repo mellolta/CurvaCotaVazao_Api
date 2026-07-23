@@ -333,48 +333,206 @@ def menu_filtros_multi(lista_dfs):
 
     # --- FUNÇÃO INTERNA PARA GERAR AS OPÇÕES DOS DROPDOWNS ---
     def obter_opcoes(coluna_alvo):
-        temp = df_ref.copy()
-        col_data = identificar_coluna_data(temp)
-        
-        # Lógica para gerar opções de Ano/Mês quando as colunas não existem (Balanceamento e Curvas)
-        if coluna_alvo in ['Ano', 'Mes'] and col_data == 'ValidadeInicio':
-            if coluna_alvo == 'Ano':
-                # Criamos um set para armazenar todos os anos únicos dentro de cada intervalo
-                anos_totais = set()
-                for _, row in temp[['ValidadeInicio', 'ValidadeFim']].dropna().iterrows():
-                    # Gera a lista de anos entre o início e o fim (ex: 2022, 2023, 2024)
-                    for ano in range(row['ValidadeInicio'].year, row['ValidadeFim'].year + 1):
-                        anos_totais.add(ano)
-                return sorted(list(anos_totais), reverse=True)
-            
-            if coluna_alvo == 'Mes':
-                # Para meses, geralmente mostramos de 1 a 12 se houver dados
-                return sorted(temp['ValidadeInicio'].dt.month.dropna().unique().tolist())
-        
-        # Lógica para gerar opções de Ano/Mês a partir de Data ou Data_Hora
-        if coluna_alvo in ['Ano', 'Mes'] and col_data in ['Data', 'Data_Hora']:
-            if coluna_alvo == 'Ano':
-                return sorted(temp[col_data].dt.year.dropna().unique().tolist(), reverse=True)
-            if coluna_alvo == 'Mes':
-                return sorted(temp[col_data].dt.month.dropna().unique().tolist())
+        """
+        Retorna as opções disponíveis para o filtro solicitado,
+        aplicando previamente todos os demais filtros.
+        O primeiro DataFrame da lista (df_ref) é sempre a referência.
+        """
 
-        #- Filtragem cruzada para as opções (se selecionar UR, limita as Estações)
+        temp = df_ref.copy()
+
+        col_data = identificar_coluna_data(temp)
+
+        # ==========================================================
+        # Aplica todos os filtros, exceto o filtro sendo calculado
+        # ==========================================================
+
         if coluna_alvo != 'UR' and st.session_state.filtro_ur:
             temp = temp[temp['UR'].isin(st.session_state.filtro_ur)]
+
         if coluna_alvo != 'Codigo' and st.session_state.filtro_cod:
             temp = temp[temp['Codigo'].isin(st.session_state.filtro_cod)]
-        
-        #- Filtro de Ano/Mês baseado na coluna de data
-        col_data_temp = identificar_coluna_data(temp)
-        if col_data_temp in ['Data', 'Data_Hora']:
-            if coluna_alvo != 'Ano' and st.session_state.filtro_ano:
-                temp = temp[temp[col_data_temp].dt.year.isin(st.session_state.filtro_ano)]
-            if coluna_alvo != 'Mes' and st.session_state.filtro_mes:
-                temp = temp[temp[col_data_temp].dt.month.isin(st.session_state.filtro_mes)]
 
-        if coluna_alvo in temp.columns:
-            return sorted(temp[coluna_alvo].unique().tolist())
+        # -------- Data/Data_Hora --------
+
+        if col_data in ['Data', 'Data_Hora']:
+
+            if coluna_alvo != 'Ano' and st.session_state.filtro_ano:
+                temp = temp[
+                    temp[col_data].dt.year.isin(st.session_state.filtro_ano)
+                ]
+
+            if coluna_alvo != 'Mes' and st.session_state.filtro_mes:
+                temp = temp[
+                    temp[col_data].dt.month.isin(st.session_state.filtro_mes)
+                ]
+
+        # -------- ValidadeInicio / ValidadeFim --------
+
+        elif col_data == 'ValidadeInicio':
+
+            if st.session_state.filtro_ano or st.session_state.filtro_mes:
+
+                ano_min = (
+                    min(st.session_state.filtro_ano)
+                    if st.session_state.filtro_ano
+                    else temp['ValidadeInicio'].dt.year.min()
+                )
+
+                ano_max = (
+                    max(st.session_state.filtro_ano)
+                    if st.session_state.filtro_ano
+                    else temp['ValidadeFim'].dt.year.max()
+                )
+
+                mes_min = (
+                    min(st.session_state.filtro_mes)
+                    if st.session_state.filtro_mes
+                    else 1
+                )
+
+                mes_max = (
+                    max(st.session_state.filtro_mes)
+                    if st.session_state.filtro_mes
+                    else 12
+                )
+
+                data_inicio = pd.Timestamp(int(ano_min), int(mes_min), 1)
+                data_fim = (
+                    pd.Timestamp(int(ano_max), int(mes_max), 1)
+                    + pd.offsets.MonthEnd(0)
+                )
+
+                if coluna_alvo not in ['Ano', 'Mes']:
+
+                    temp = temp[
+                        (temp['ValidadeInicio'] <= data_fim) &
+                        (temp['ValidadeFim'] >= data_inicio)
+                    ]
+
+        # ==========================================================
+        # Agora calcula as opções disponíveis
+        # ==========================================================
+
+        if coluna_alvo == 'UR':
+            return sorted(temp['UR'].dropna().unique().tolist())
+
+        if coluna_alvo == 'Codigo':
+            return sorted(temp['Codigo'].dropna().unique().tolist())
+
+        if coluna_alvo == 'Ano':
+
+            if col_data in ['Data', 'Data_Hora']:
+
+                return sorted(
+                    temp[col_data]
+                        .dt.year
+                        .dropna()
+                        .unique()
+                        .tolist(),
+                    reverse=True
+                )
+
+            elif col_data == 'ValidadeInicio':
+
+                anos = set()
+
+                for _, row in temp[['ValidadeInicio', 'ValidadeFim']].dropna().iterrows():
+
+                    anos.update(
+                        range(
+                            row['ValidadeInicio'].year,
+                            row['ValidadeFim'].year + 1
+                        )
+                    )
+
+                return sorted(anos, reverse=True)
+
+        if coluna_alvo == 'Mes':
+
+            if col_data in ['Data', 'Data_Hora']:
+
+                return sorted(
+                    temp[col_data]
+                        .dt.month
+                        .dropna()
+                        .unique()
+                        .tolist()
+                )
+
+            elif col_data == 'ValidadeInicio':
+
+                meses = set()
+
+                for _, row in temp[['ValidadeInicio', 'ValidadeFim']].dropna().iterrows():
+
+                    for ano in range(
+                        row['ValidadeInicio'].year,
+                        row['ValidadeFim'].year + 1
+                    ):
+
+                        mes_ini = (
+                            row['ValidadeInicio'].month
+                            if ano == row['ValidadeInicio'].year
+                            else 1
+                        )
+
+                        mes_fim = (
+                            row['ValidadeFim'].month
+                            if ano == row['ValidadeFim'].year
+                            else 12
+                        )
+
+                        meses.update(range(mes_ini, mes_fim + 1))
+
+                return sorted(meses)
+
         return []
+
+
+    # def obter_opcoes(coluna_alvo):
+    #     temp = df_ref.copy()
+    #     col_data = identificar_coluna_data(temp)
+        
+    #     # Lógica para gerar opções de Ano/Mês quando as colunas não existem (Balanceamento e Curvas)
+    #     if coluna_alvo in ['Ano', 'Mes'] and col_data == 'ValidadeInicio':
+    #         if coluna_alvo == 'Ano':
+    #             # Criamos um set para armazenar todos os anos únicos dentro de cada intervalo
+    #             anos_totais = set()
+    #             for _, row in temp[['ValidadeInicio', 'ValidadeFim']].dropna().iterrows():
+    #                 # Gera a lista de anos entre o início e o fim (ex: 2022, 2023, 2024)
+    #                 for ano in range(row['ValidadeInicio'].year, row['ValidadeFim'].year + 1):
+    #                     anos_totais.add(ano)
+    #             return sorted(list(anos_totais), reverse=True)
+            
+    #         if coluna_alvo == 'Mes':
+    #             # Para meses, geralmente mostramos de 1 a 12 se houver dados
+    #             return sorted(temp['ValidadeInicio'].dt.month.dropna().unique().tolist())
+        
+    #     # Lógica para gerar opções de Ano/Mês a partir de Data ou Data_Hora
+    #     if coluna_alvo in ['Ano', 'Mes'] and col_data in ['Data', 'Data_Hora']:
+    #         if coluna_alvo == 'Ano':
+    #             return sorted(temp[col_data].dt.year.dropna().unique().tolist(), reverse=True)
+    #         if coluna_alvo == 'Mes':
+    #             return sorted(temp[col_data].dt.month.dropna().unique().tolist())
+
+    #     #- Filtragem cruzada para as opções (se selecionar UR, limita as Estações)
+    #     if coluna_alvo != 'UR' and st.session_state.filtro_ur:
+    #         temp = temp[temp['UR'].isin(st.session_state.filtro_ur)]
+    #     if coluna_alvo != 'Codigo' and st.session_state.filtro_cod:
+    #         temp = temp[temp['Codigo'].isin(st.session_state.filtro_cod)]
+        
+    #     #- Filtro de Ano/Mês baseado na coluna de data
+    #     col_data_temp = identificar_coluna_data(temp)
+    #     if col_data_temp in ['Data', 'Data_Hora']:
+    #         if coluna_alvo != 'Ano' and st.session_state.filtro_ano:
+    #             temp = temp[temp[col_data_temp].dt.year.isin(st.session_state.filtro_ano)]
+    #         if coluna_alvo != 'Mes' and st.session_state.filtro_mes:
+    #             temp = temp[temp[col_data_temp].dt.month.isin(st.session_state.filtro_mes)]
+
+    #     if coluna_alvo in temp.columns:
+    #         return sorted(temp[coluna_alvo].unique().tolist())
+    #     return []
 
     # --- RENDERIZAÇÃO DA INTERFACE ---
     # Função auxiliar para o callback (resolve o problema do clique duplo)

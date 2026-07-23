@@ -18,7 +18,7 @@ import funcoes as fc
 fc.configuracoes_iniciais()
 
 #- Título e descrição da página
-st.subheader("Medição e desvio em relação à curva-chave que está no banco SQL")
+st.subheader("Desvio das medições em relação à curva-chave que está no banco SQL")
 st.markdown(""" 
              :yellow[✍️Atenção]: medições com desvio superior a 20% estão destacadas em vermelho.
              """)
