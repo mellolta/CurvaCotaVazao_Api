@@ -244,7 +244,7 @@ else:
 # < ------------------------------------------------------------------------------------------------------------------------------
 #$ Exibe o DataFrame resultante (Tabela auxiliar)
 #- Título da tabela
-st.subheader("📋 Descontinuidade no passo das cotas e vazões")
+st.subheader("📋 Possíveis descontinuidades no passo das cotas e vazões")
 
 #- Descrição do DataFrame exibido
 if exibe_passo_diario.empty:
@@ -323,10 +323,6 @@ st.dataframe(
             help="Diferença percentual entre a cota do dia analisado e a do dia anterior"), 
         "Diferença_cota": st.column_config.NumberColumn("Diferença Cota (cm)", format="%d", 
             help="Diferença de cota entre o dia analisado e o dia anterior"),
-        # "Ano": st.column_config.NumberColumn("Ano", format="%d", 
-        #                                      help="Ano da leitura"),
-        # "Mes": st.column_config.NumberColumn("Mês", format="%d", 
-        #                                      help="Mês da leitura"),
         # Notas: Quando usamos .style.format, o 'format' do column_config 
         # pode ser omitido para as colunas numéricas estilizadas.
     }
