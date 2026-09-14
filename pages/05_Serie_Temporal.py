@@ -190,7 +190,7 @@ if estacoes_selecionadas <= 3 and estacoes_selecionadas > 0:
     
     #- Personaliza o layout do gráfico
     fig.update_layout(
-        title='Evolução da Cota ao Longo do Tempo',
+        title='Cota ao Longo do Tempo',
         xaxis_title='Data',
         yaxis_title='Cota (cm)',
         legend_title='Legenda',
