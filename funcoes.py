@@ -489,51 +489,6 @@ def menu_filtros_multi(lista_dfs):
 
         return []
 
-
-    # def obter_opcoes(coluna_alvo):
-    #     temp = df_ref.copy()
-    #     col_data = identificar_coluna_data(temp)
-        
-    #     # Lógica para gerar opções de Ano/Mês quando as colunas não existem (Balanceamento e Curvas)
-    #     if coluna_alvo in ['Ano', 'Mes'] and col_data == 'ValidadeInicio':
-    #         if coluna_alvo == 'Ano':
-    #             # Criamos um set para armazenar todos os anos únicos dentro de cada intervalo
-    #             anos_totais = set()
-    #             for _, row in temp[['ValidadeInicio', 'ValidadeFim']].dropna().iterrows():
-    #                 # Gera a lista de anos entre o início e o fim (ex: 2022, 2023, 2024)
-    #                 for ano in range(row['ValidadeInicio'].year, row['ValidadeFim'].year + 1):
-    #                     anos_totais.add(ano)
-    #             return sorted(list(anos_totais), reverse=True)
-            
-    #         if coluna_alvo == 'Mes':
-    #             # Para meses, geralmente mostramos de 1 a 12 se houver dados
-    #             return sorted(temp['ValidadeInicio'].dt.month.dropna().unique().tolist())
-        
-    #     # Lógica para gerar opções de Ano/Mês a partir de Data ou Data_Hora
-    #     if coluna_alvo in ['Ano', 'Mes'] and col_data in ['Data', 'Data_Hora']:
-    #         if coluna_alvo == 'Ano':
-    #             return sorted(temp[col_data].dt.year.dropna().unique().tolist(), reverse=True)
-    #         if coluna_alvo == 'Mes':
-    #             return sorted(temp[col_data].dt.month.dropna().unique().tolist())
-
-    #     #- Filtragem cruzada para as opções (se selecionar UR, limita as Estações)
-    #     if coluna_alvo != 'UR' and st.session_state.filtro_ur:
-    #         temp = temp[temp['UR'].isin(st.session_state.filtro_ur)]
-    #     if coluna_alvo != 'Codigo' and st.session_state.filtro_cod:
-    #         temp = temp[temp['Codigo'].isin(st.session_state.filtro_cod)]
-        
-    #     #- Filtro de Ano/Mês baseado na coluna de data
-    #     col_data_temp = identificar_coluna_data(temp)
-    #     if col_data_temp in ['Data', 'Data_Hora']:
-    #         if coluna_alvo != 'Ano' and st.session_state.filtro_ano:
-    #             temp = temp[temp[col_data_temp].dt.year.isin(st.session_state.filtro_ano)]
-    #         if coluna_alvo != 'Mes' and st.session_state.filtro_mes:
-    #             temp = temp[temp[col_data_temp].dt.month.isin(st.session_state.filtro_mes)]
-
-    #     if coluna_alvo in temp.columns:
-    #         return sorted(temp[coluna_alvo].unique().tolist())
-    #     return []
-
     # --- RENDERIZAÇÃO DA INTERFACE ---
     # Função auxiliar para o callback (resolve o problema do clique duplo)
     def atualizar_filtros():

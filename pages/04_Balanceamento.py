@@ -63,12 +63,16 @@ exibe_balanceamento = df_filtrado.copy()
 #- Cria uma coluna temporária para o desvio absoluto (facilita a ordenação)
 exibe_balanceamento['Desvio_Abs'] = exibe_balanceamento['DesvioMedio'].abs()
 
+# REQUISITO 3: Substituição do botão por Checkbox para manter o estado da ordenação estável
+ordenar_balanceamento = c_btn2.checkbox("🔥 Ordenar por Maior Desvio", value=False)
+
 #- Botão para ordenar pelos casos mais críticos
-if c_btn2.button("🔥 Ordenar por Maior Desvio", 
-                 use_container_width=True, 
-                 type="primary"):
+# if c_btn2.button("🔥 Ordenar por Maior Desvio", 
+#                  use_container_width=True, 
+#                  type="primary"):
+if ordenar_balanceamento:
     exibe_balanceamento = exibe_balanceamento.sort_values(by='Desvio_Abs', ascending=False)
-    st.success("Ordenado pelos maiores desvios.")
+    # st.success("Ordenado pelos maiores desvios.")
 else:
     # Ordem padrão (geralmente por data ou como vier do banco)
     exibe_balanceamento = exibe_balanceamento.sort_values(by='ValidadeFim', ascending=False)
