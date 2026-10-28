@@ -369,6 +369,9 @@ for desvio in df_med_filtrado['Desvio']:
 fig = go.Figure()
 
 #- Medições (Cota vs Vazão)
+# Garante que a coluna é datetime e cria uma versão formatada apenas como string 'YYYY-MM-DD'
+df_med_filtrado['Data_Str'] = pd.to_datetime(df_med_filtrado['Data']).dt.strftime('%Y-%m-%d')
+
 if not df_med_filtrado.empty:
     fig.add_trace(go.Scatter(
         x=df_med_filtrado['Vazao'],
@@ -382,7 +385,8 @@ if not df_med_filtrado.empty:
             color=cores_cota_vazao,  # <--- Aplicando as cores corretas para esta ordenação
             line=dict(width=1, color='black')  # Borda preta ajuda a enxergar pontos amarelos
         ),
-        text=df_med_filtrado['Data'],
+        # text=df_med_filtrado['Data'],
+        text=df_med_filtrado['Data_Str'], # <--- Usando a data formatada como string
         customdata=df_med_filtrado['Desvio'],
         hovertemplate="<b>Data:</b> %{text}<br><b>Vazão:</b> %{x:.2f}<br><b>Cota:</b> %{y:.0f}<br><b>Desvio:</b> %{customdata:.1f}%<extra></extra>"
     ))
