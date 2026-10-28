@@ -472,7 +472,7 @@ if not df_med_filtrado.empty:
         ),
         text=df_desvio_temporal['Cota'],
         customdata=df_desvio_temporal['Vazao'],
-        hovertemplate="<b>Data:</b> %{x}<br><b>Desvio:</b> %{y:.2f}%<br><b>Cota:</b> %{text:.0f} cm<br><b>Vazão:</b> %{customdata:.2f} m³/s<extra></extra>"
+        hovertemplate="<b>Data:</b> %{x|%Y-%m-%d}<br><b>Desvio:</b> %{y:.2f}%<br><b>Cota:</b> %{text:.0f} cm<br><b>Vazão:</b> %{customdata:.2f} m³/s<extra></extra>"
     ))
 
     # Adiciona as legendas das faixas de desvio no gráfico Temporal
